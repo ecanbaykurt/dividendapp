@@ -373,27 +373,27 @@ def main():
         budget = st.number_input("Investment budget ($)", min_value=1000.0, value=10000.0, step=500.0)
 
         if st.button("Run Analysis"):
-        # Elbow plot for choosing k
-        inertias = []
-        X = stock_df.dropna()[features]
-        for i in range(1, max_k + 1):
-            inertias.append(KMeans(n_clusters=i, random_state=42).fit(X).inertia_)
-        fig, ax = plt.subplots()
-        ax.plot(range(1, max_k + 1), inertias, marker='o')
-        ax.set_xlabel("k")
-        ax.set_ylabel("Inertia")
-        ax.set_title("Elbow Method to Find Optimal k")
-        st.pyplot(fig)
+            # Elbow plot for choosing k
+            inertias = []
+            X = stock_df.dropna()[features]
+            for i in range(1, max_k + 1):
+                inertias.append(KMeans(n_clusters=i, random_state=42).fit(X).inertia_)
+            fig, ax = plt.subplots()
+            ax.plot(range(1, max_k + 1), inertias, marker='o')
+            ax.set_xlabel("k")
+            ax.set_ylabel("Inertia")
+            ax.set_title("Elbow Method to Find Optimal k")
+            st.pyplot(fig)
 
-        # Clustering and recommendations
-        clustered_df, kmeans_model = perform_kmeans_clustering(stock_df, k)
-        st.success("Clustering completed successfully!")
+            # Clustering and recommendations
+            clustered_df, kmeans_model = perform_kmeans_clustering(stock_df, k)
+            st.success("Clustering completed successfully!")
 
-        cluster_choice = st.selectbox("Choose a cluster to explore", options=sorted(clustered_df['Cluster'].unique()), index=0)
-        st.subheader(f"Top Dividend Stocks from Cluster {cluster_choice}")
+            cluster_choice = st.selectbox("Choose a cluster to explore", options=sorted(clustered_df['Cluster'].unique()), index=0)
+            st.subheader(f"Top Dividend Stocks from Cluster {cluster_choice}")
 
-        recommendations = recommend_dividend_stocks(clustered_df, selected_cluster=cluster_choice, budget=budget)
-        st.dataframe(recommendations[['Ticker', 'Dividend Yield', 'Price', 'Beta', 'Allocation per Stock ($)']])
+            recommendations = recommend_dividend_stocks(clustered_df, selected_cluster=cluster_choice, budget=budget)
+            st.dataframe(recommendations[['Ticker', 'Dividend Yield', 'Price', 'Beta', 'Allocation per Stock ($)']])
 
     else:
         explain_backend()
