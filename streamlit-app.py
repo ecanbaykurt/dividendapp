@@ -357,7 +357,7 @@ def main():
                 st.error(result[1])
 
     elif page == "Investing Analysis":
-    st.header("📈 Dividend Investing Recommendation")
+    st.header("Dividend Investing Recommendation")
     st.write("Clustering the full S&P 500 dataset to identify dividend stock opportunities…")
 
     with st.spinner("Fetching & featurizing S&P 500 tickers…"):
