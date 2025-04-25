@@ -145,12 +145,10 @@ def compute_altman_z(ticker: str):
     return z_score, classification
 
 ############################################
-# INVESTING ANALYSIS FUNCTIONS (REWRITTEN)
+# INVESTING ANALYSIS FUNCTIONS
 ############################################
 
-@st.cache_data(show_spinner=True)
 def get_sp500_tickers():
-    """Fetch list of S&P 500 tickers from Wikipedia."""
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     resp = requests.get(url)
     soup = BeautifulSoup(resp.text, 'html.parser')
@@ -158,40 +156,31 @@ def get_sp500_tickers():
     df = pd.read_html(str(table))[0]
     return df['Symbol'].tolist()
 
-@st.cache_data(show_spinner=True)
-def extract_stock_features(tickers):
-    """Extract key financial features for clustering."""
+def extract_features(tickers):
     data = []
-    for ticker in tickers:
+    for t in tickers:
         try:
-            info = yf.Ticker(ticker).info
-            dy = info.get('dividendYield', np.nan)
-            price = info.get('regularMarketPrice', np.nan)
-            beta = info.get('beta', np.nan)
+            info = yf.Ticker(t).info
+            dy  = info.get('dividendYield',    np.nan)
+            er  = info.get('regularMarketPrice', np.nan)
+            stl = info.get('beta',              np.nan)
         except Exception:
-            dy, price, beta = np.nan, np.nan, np.nan
-        data.append([ticker, dy, price, beta])
-    
-    df = pd.DataFrame(data, columns=['Ticker', 'Dividend Yield', 'Price', 'Beta'])
-    df = df.dropna()
-    return df
+            dy, er, stl = np.nan, np.nan, np.nan
+        data.append([t, dy, er, stl])
+    return pd.DataFrame(data, columns=['Ticker','Dividend Yield','Expected Return','Stability'])
 
-def perform_kmeans_clustering(df, k=4):
-    """Cluster stocks using KMeans on selected financial features."""
-    features = df[['Dividend Yield', 'Price', 'Beta']]
-    kmeans = KMeans(n_clusters=k, random_state=42)
-    df['Cluster'] = kmeans.fit_predict(features)
-    return df, kmeans
+def perform_kmeans_clustering(df, k):
+    dfc = df.dropna()
+    X = dfc[['Dividend Yield', 'Expected Return', 'Stability']]
+    km = KMeans(n_clusters=k, random_state=42).fit(X)
+    dfc['Cluster'] = km.labels_
+    return dfc, km
 
-def recommend_dividend_stocks(df_clustered, selected_cluster, budget):
-    """Recommend top dividend stocks from selected cluster given a budget."""
-    cluster_df = df_clustered[df_clustered['Cluster'] == selected_cluster]
-    top_div_stocks = cluster_df.sort_values(by='Dividend Yield', ascending=False).head(5)
-
-    allocation = budget / len(top_div_stocks)
-    top_div_stocks['Allocation per Stock ($)'] = allocation
-
-    return top_div_stocks
+def recommend_stocks(df, budget):
+    top = df.sort_values('Dividend Yield', ascending=False).head(5)
+    alloc = budget / len(top)
+    top['Allocation'] = alloc
+    return top
 
 ############################################
 # EXPLANATION PAGE
@@ -357,43 +346,35 @@ def main():
                 st.error(result[1])
 
     elif page == "Investing Analysis":
-        st.header("📈 Dividend Investing Recommendation")
-        st.write("Clustering the full S&P 500 dataset to identify dividend stock opportunities…")
-
-        with st.spinner("Fetching & featurizing S&P 500 tickers…"):
+        st.header("Investing Analysis")
+        st.write("Clustering the full S&P 500 dataset…")
+        with st.spinner("Fetching & featurizing…"):
             tickers = get_sp500_tickers()
-            stock_df = extract_stock_features(tickers)
+            df = extract_features(tickers)
+        st.write(f"Loaded {len(df)} tickers; {df.dropna().shape[0]} with complete features.")
 
-        st.write(f"Loaded {len(stock_df)} tickers; {stock_df.dropna().shape[0]} with complete features.")
-    
-        features = ['Dividend Yield', 'Expected Return', 'Stability']
-        max_k = min(stock_df.dropna().shape[0], 10)
-        k = st.slider("Select number of clusters (k)", 1, max_k, 4)
-
-        budget = st.number_input("Investment budget ($)", min_value=1000.0, value=10000.0, step=500.0)
+        features = ['Dividend Yield','Expected Return','Stability']
+        max_k = min(df.dropna().shape[0], 10)
+        k = st.slider("Number of clusters (k)", 1, max_k, 3)
+        budget = st.number_input("Investment budget ($)", 1000.0)
 
         if st.button("Run Analysis"):
-            # Elbow plot for choosing k
+            # Elbow plot
             inertias = []
-            X = stock_df.dropna()[features]
-            for i in range(1, max_k + 1):
+            X = df.dropna()[features]
+            for i in range(1, max_k+1):
                 inertias.append(KMeans(n_clusters=i, random_state=42).fit(X).inertia_)
             fig, ax = plt.subplots()
-            ax.plot(range(1, max_k + 1), inertias, marker='o')
+            ax.plot(range(1, max_k+1), inertias, marker='o')
             ax.set_xlabel("k")
             ax.set_ylabel("Inertia")
-            ax.set_title("Elbow Method to Find Optimal k")
+            ax.set_title("Elbow Method")
             st.pyplot(fig)
 
-            # Clustering and recommendations
-            clustered_df, kmeans_model = perform_kmeans_clustering(stock_df, k)
-            st.success("Clustering completed successfully!")
-
-            cluster_choice = st.selectbox("Choose a cluster to explore", options=sorted(clustered_df['Cluster'].unique()), index=0)
-            st.subheader(f"Top Dividend Stocks from Cluster {cluster_choice}")
-
-            recommendations = recommend_dividend_stocks(clustered_df, selected_cluster=cluster_choice, budget=budget)
-            st.dataframe(recommendations[['Ticker', 'Dividend Yield', 'Price', 'Beta', 'Allocation per Stock ($)']])
+            # Clustering & recommendation
+            dfc, _ = perform_kmeans_clustering(df, k)
+            rec = recommend_stocks(dfc, budget)
+            st.write("### Top Recommendations", rec)
 
     else:
         explain_backend()
