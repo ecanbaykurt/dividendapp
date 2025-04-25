@@ -357,22 +357,22 @@ def main():
                 st.error(result[1])
 
     elif page == "Investing Analysis":
-    st.header("Dividend Investing Recommendation")
-    st.write("Clustering the full S&P 500 dataset to identify dividend stock opportunities…")
+        st.header("📈 Dividend Investing Recommendation")
+        st.write("Clustering the full S&P 500 dataset to identify dividend stock opportunities…")
 
-    with st.spinner("Fetching & featurizing S&P 500 tickers…"):
+        with st.spinner("Fetching & featurizing S&P 500 tickers…"):
         tickers = get_sp500_tickers()
         stock_df = extract_stock_features(tickers)
 
-    st.write(f"Loaded {len(stock_df)} tickers; {stock_df.dropna().shape[0]} with complete features.")
+        st.write(f"Loaded {len(stock_df)} tickers; {stock_df.dropna().shape[0]} with complete features.")
+    
+        features = ['Dividend Yield', 'Expected Return', 'Stability']
+        max_k = min(stock_df.dropna().shape[0], 10)
+        k = st.slider("Select number of clusters (k)", 1, max_k, 4)
 
-    features = ['Dividend Yield', 'Expected Return', 'Stability']
-    max_k = min(stock_df.dropna().shape[0], 10)
-    k = st.slider("Select number of clusters (k)", 1, max_k, 4)
+        budget = st.number_input("Investment budget ($)", min_value=1000.0, value=10000.0, step=500.0)
 
-    budget = st.number_input("Investment budget ($)", min_value=1000.0, value=10000.0, step=500.0)
-
-    if st.button("Run Analysis"):
+        if st.button("Run Analysis"):
         # Elbow plot for choosing k
         inertias = []
         X = stock_df.dropna()[features]
