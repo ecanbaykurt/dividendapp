@@ -361,8 +361,8 @@ def main():
         st.write("Clustering the full S&P 500 dataset to identify dividend stock opportunities…")
 
         with st.spinner("Fetching & featurizing S&P 500 tickers…"):
-        tickers = get_sp500_tickers()
-        stock_df = extract_stock_features(tickers)
+            tickers = get_sp500_tickers()
+            stock_df = extract_stock_features(tickers)
 
         st.write(f"Loaded {len(stock_df)} tickers; {stock_df.dropna().shape[0]} with complete features.")
     
