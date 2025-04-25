@@ -361,7 +361,7 @@ def main():
     st.write("Clustering the full S&P 500 dataset…")
 
     with st.spinner("Fetching & featurizing…"):
-        tickers = get_sample_tickers()  # Replace with limited sample or a real fetcher
+        tickers = get_sp500_tickers()
         df = extract_stock_features(tickers)
 
     st.write(f"Loaded {len(df)} tickers; {df.dropna().shape[0]} with complete features.")
@@ -375,10 +375,10 @@ def main():
         # Elbow Plot
         inertias = []
         X = df.dropna()[features]
-        for i in range(1, max_k+1):
+        for i in range(1, max_k + 1):
             inertias.append(KMeans(n_clusters=i, random_state=42).fit(X).inertia_)
         fig, ax = plt.subplots()
-        ax.plot(range(1, max_k+1), inertias, marker='o')
+        ax.plot(range(1, max_k + 1), inertias, marker='o')
         ax.set_xlabel("k")
         ax.set_ylabel("Inertia")
         ax.set_title("Elbow Method")
@@ -386,8 +386,18 @@ def main():
 
         # Clustering & Recommendations
         dfc, _ = perform_kmeans_clustering(df, k)
-        rec = recommend_dividend_stocks(dfc, selected_cluster=0, budget=budget)  # You can expose cluster choice too
-        st.write("### Top Recommendations")
+        st.subheader("Cluster Visualization")
+        fig2, ax2 = plt.subplots()
+        scatter = ax2.scatter(dfc['Price'], dfc['Dividend Yield'], c=dfc['Cluster'], cmap='viridis')
+        ax2.set_xlabel("Price")
+        ax2.set_ylabel("Dividend Yield")
+        ax2.set_title("Clusters of Stocks")
+        legend1 = ax2.legend(*scatter.legend_elements(), title="Clusters")
+        ax2.add_artist(legend1)
+        st.pyplot(fig2)
+
+        st.subheader("Top Recommendations")
+        rec = recommend_dividend_stocks(dfc, selected_cluster=0, budget=budget)
         st.dataframe(rec[['Ticker', 'Dividend Yield', 'Price', 'Beta', 'Allocation per Stock ($)']])
 
     else:
