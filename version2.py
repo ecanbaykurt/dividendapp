@@ -200,7 +200,7 @@ def explain_backend():
     st.write("This app uses Yahoo Finance for financial data, performs clustering on features like dividend yield, expected return, and beta for recommendations, and calculates the Altman Z-Score to assess company bankruptcy risk.")
 
 def main():
-    st.title("Personalized Financial Dashboard")
+    st.title("Financial Dashboard")
 
     page = st.sidebar.radio(
         "Navigation", 
