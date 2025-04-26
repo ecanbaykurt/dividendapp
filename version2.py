@@ -156,7 +156,6 @@ def perform_clustering(df):
 def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
 
-    # Filter based on user preferences
     if preferences:
         priority = preferences.get('priority')
         if priority == 'Dividend Yield':
@@ -166,20 +165,18 @@ def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_sto
         elif priority == 'Stability':
             df_clean = df_clean.sort_values('Stability', ascending=False)
 
-    # If clustering is used, filter the top cluster
     if model:
-        df_clean['Cluster'] = model.predict(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
+        features = df_clean[['Dividend Yield', 'Expected Return', 'Stability']]
+        scaler = StandardScaler()
+        features_scaled = scaler.fit_transform(features)
+        df_clean['Cluster'] = model.predict(features_scaled)
         best_cluster = df_clean['Cluster'].mode()[0]
         df_clean = df_clean[df_clean['Cluster'] == best_cluster]
 
-    # Apply a filter based on the available budget and minimum/maximum stock price
     df_clean = df_clean[(df_clean['Expected Return'] >= min_price_per_stock) & 
                         (df_clean['Expected Return'] <= max_price_per_stock)]
 
-    # Select top N stocks for the recommendation
     selected = df_clean.head(5)
-    
-    # Allocate the budget across selected stocks
     allocation = budget / len(selected) if len(selected) > 0 else 0
     selected['Allocation'] = allocation
 
@@ -225,11 +222,9 @@ def main():
                 st.error(f"Error: {classification}")
 
     elif page == "Investing Analysis":
-        # Personalized Financial Dashboard
         st.subheader("Personalized Financial Dashboard")
 
         budget = st.number_input("Investment Budget ($)", min_value=0)
-        # Investment Priority Dropdown and Minimum and Maximum Stock Prices
         investment_priority = st.selectbox(
             "Select Investment Priority",
             ['Dividend Yield', 'Expected Return', 'Stability']
@@ -241,11 +236,29 @@ def main():
             tickers = get_sp500_tickers()
             df_features = extract_features(tickers)
             model, clustered = perform_clustering(df_features)
+
+            # Explain clustering
+            st.subheader("How Clustering Works")
+            st.write("""
+            Stocks are grouped into clusters based on similarities in their dividend yield, expected return, and stability.
+            We recommend stocks from the 'best' cluster that matches your selected priority.
+            """)
+
+            # Visualize clusters
+            st.subheader("Cluster Visualization")
+            fig, ax = plt.subplots()
+            scatter = ax.scatter(clustered['Dividend Yield'], clustered['Expected Return'], c=clustered['Cluster'], cmap='viridis')
+            ax.set_xlabel('Dividend Yield')
+            ax.set_ylabel('Expected Return')
+            ax.set_title('Stock Clusters')
+            plt.colorbar(scatter, label='Cluster')
+            st.pyplot(fig)
+
             recommendations = recommend_stocks(
                 clustered, budget, model=model, preferences={'priority': investment_priority}, 
                 min_price_per_stock=min_price, max_price_per_stock=max_price
             )
-            st.write("Top Recommended Stocks:")
+            st.subheader("Top Recommended Stocks:")
             st.dataframe(recommendations)
 
     elif page == "Explain Backend":
