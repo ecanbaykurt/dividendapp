@@ -223,7 +223,7 @@ def main():
                 st.error(f"Error: {classification}")
 
     elif page == "Investing Analysis":
-        st.subheader("Input Preferences Below:")
+        st.subheader("Input preferences below for personalized investment analysis:")
 
         budget = st.number_input("Investment Budget ($)", min_value=0)
         investment_priority = st.selectbox(
@@ -247,7 +247,7 @@ def main():
 
             # Visualize clusters in 3D
             st.subheader("Cluster Visualization (3D)")
-            fig = plt.figure(figsize=(20, 20))
+            fig = plt.figure(figsize=(15, 15))
             ax = fig.add_subplot(111, projection='3d')
             ax.scatter(clustered['Dividend Yield'], clustered['Expected Return'], clustered['Stability'], 
                        c=clustered['Cluster'], cmap='viridis')
