@@ -1,12 +1,12 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
 import requests
 from bs4 import BeautifulSoup
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
 
 ############################################
 # DIVIDEND DASHBOARD FUNCTIONS
@@ -139,10 +139,24 @@ def extract_features(tickers):
         data.append([t, dy, er, stl])
     return pd.DataFrame(data, columns=['Ticker', 'Dividend Yield', 'Expected Return', 'Stability'])
 
+def perform_clustering(df):
+    # Handle missing values before clustering
+    df = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])  # Drop rows with missing data
+    scaler = StandardScaler()
+    df_scaled = scaler.fit_transform(df[['Dividend Yield', 'Expected Return', 'Stability']].fillna(0))  # Fill any remaining NaNs with 0
+    
+    # Perform KMeans clustering
+    kmeans = KMeans(n_clusters=3, random_state=42)
+    df['Cluster'] = kmeans.fit_predict(df_scaled)
+    
+    return kmeans, df
+
 def recommend_stocks(df, budget, cluster_model=None):
+    # Handle missing data
+    df = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])  # Drop rows with missing values
     # If clustering model is passed, use it to cluster the stocks first
     if cluster_model:
-        df['Cluster'] = cluster_model.predict(df[['Dividend Yield', 'Expected Return', 'Stability']])
+        df['Cluster'] = cluster_model.predict(df[['Dividend Yield', 'Expected Return', 'Stability']].fillna(0))
         # Filter stocks from the best cluster for the user
         best_cluster = df['Cluster'].mode()[0]
         df = df[df['Cluster'] == best_cluster]
@@ -160,17 +174,6 @@ def get_sp500_tickers():
     table = soup.find('table', {'id': 'constituents'})
     df = pd.read_html(str(table))[0]
     return df['Symbol'].tolist()
-
-def perform_clustering(df):
-    # Normalize the features for clustering
-    scaler = StandardScaler()
-    df_scaled = scaler.fit_transform(df[['Dividend Yield', 'Expected Return', 'Stability']].fillna(0))
-    
-    # Perform KMeans clustering
-    kmeans = KMeans(n_clusters=3, random_state=42)
-    df['Cluster'] = kmeans.fit_predict(df_scaled)
-    
-    return kmeans, df
 
 ############################################
 # STREAMLIT APP
@@ -207,7 +210,7 @@ def main():
         if st.button("Recommend Top Dividend Stocks"):
             tickers = get_sp500_tickers()
             df = extract_features(tickers)
-            kmeans, clustered_stocks = perform_clustering(df)
+            kmeans, clustered_stocks = perform_clustering(df)  # Perform clustering
             recommended_stocks = recommend_stocks(clustered_stocks, budget, cluster_model=kmeans)
             st.write("Recommended Stocks for Investment:")
             st.write(recommended_stocks)
