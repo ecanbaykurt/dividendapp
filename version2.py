@@ -247,7 +247,7 @@ def main():
 
             # Visualize clusters in 3D
             st.subheader("Cluster Visualization (3D)")
-            fig = plt.figure(figsize=(5, 5))
+            fig = plt.figure(figsize=(20, 20))
             ax = fig.add_subplot(111, projection='3d')
             ax.scatter(clustered['Dividend Yield'], clustered['Expected Return'], clustered['Stability'], 
                        c=clustered['Cluster'], cmap='viridis')
