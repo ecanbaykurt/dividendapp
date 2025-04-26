@@ -17,7 +17,7 @@ from sklearn.preprocessing import StandardScaler
 
 def display_dividend_dashboard(ticker: str):
     ticker_obj = yf.Ticker(ticker)
-    info = ticker_obj.fast_info if hasattr(ticker_obj, 'fast_info') else ticker_obj.info
+    info = ticker_obj.info
 
     st.subheader("Company Overview")
     st.write(info.get('longBusinessSummary', "No overview available."))
@@ -26,13 +26,13 @@ def display_dividend_dashboard(ticker: str):
     dividends = ticker_obj.dividends
 
     if dividends.empty:
-        st.warning("No dividend data available for this ticker.")
+        st.write("No dividend data available for this ticker.")
     else:
         recent_dividends = dividends.tail(10)
-        st.dataframe(recent_dividends)
+        st.write(recent_dividends)
 
         fig, ax = plt.subplots(figsize=(10, 4))
-        ax.bar(recent_dividends.index, recent_dividends.values, color='skyblue')
+        ax.bar(recent_dividends.index, recent_dividends.values)
         ax.set_title("Dividend History (Last 10 Entries)")
         ax.set_xlabel("Date")
         ax.set_ylabel("Dividend ($)")
@@ -44,10 +44,12 @@ def display_dividend_dashboard(ticker: str):
     history = ticker_obj.history(period="1y")
 
     if history.empty:
-        st.warning("No price data available for this ticker.")
+        st.write("No price data available for this ticker.")
     else:
+        st.write(history[['Close']].head())
+
         fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(history.index, history['Close'], label="Close Price", color='orange')
+        ax.plot(history.index, history['Close'], label="Close Price")
         ax.set_title("Price History (Last 1 Year)")
         ax.set_xlabel("Date")
         ax.set_ylabel("Price ($)")
@@ -58,15 +60,13 @@ def display_dividend_dashboard(ticker: str):
     eps = info.get('trailingEps')
     dividend_rate = info.get('dividendRate')
     dividend_yield = info.get('dividendYield')
+
     payout_ratio = (dividend_rate / eps) if eps and dividend_rate else None
 
-    metrics = {
-        "Trailing EPS": eps,
-        "Dividend Rate": dividend_rate,
-        "Dividend Yield": dividend_yield,
-        "Dividend Payout Ratio": round(payout_ratio, 2) if payout_ratio else None
-    }
-    st.json(metrics)
+    st.write("Trailing EPS:", eps if eps is not None else "N/A")
+    st.write("Dividend Rate:", dividend_rate if dividend_rate is not None else "N/A")
+    st.write("Dividend Yield:", dividend_yield if dividend_yield is not None else "N/A")
+    st.write("Dividend Payout Ratio:", round(payout_ratio, 2) if payout_ratio else "N/A")
 
 # ============================================
 # Altman Z-Score Functions
@@ -78,38 +78,43 @@ def compute_altman_z(ticker: str):
     fs = ticker_obj.financials
     info = ticker_obj.info
 
-    def lookup(data, keys):
+    def fetch_balance(keys):
         for key in keys:
-            for idx in data.index:
-                if idx.strip().lower() == key.strip().lower():
-                    return data.loc[idx][0]
+            for row in bs.index:
+                if row.strip().lower() == key.strip().lower():
+                    return bs.loc[row][0]
         return None
 
-    total_assets = lookup(bs, ["Total Assets"])
-    total_liabilities = lookup(bs, ["Total Liabilities", "Total Liabilities Net Minority Interest"])
-    current_assets = lookup(bs, ["Current Assets", "Total Current Assets"])
-    current_liabilities = lookup(bs, ["Current Liabilities", "Total Current Liabilities"])
-    retained_earnings = lookup(bs, ["Retained Earnings"])
-    ebit = lookup(fs, ["EBIT", "Operating Income"])
-    sales = lookup(fs, ["Total Revenue", "Sales"])
+    def fetch_financials(keys):
+        for key in keys:
+            for row in fs.index:
+                if row.strip().lower() == key.strip().lower():
+                    return fs.loc[row][0]
+        return None
+
+    total_assets = fetch_balance(["Total Assets"])
+    total_liabilities = fetch_balance(["Total Liabilities", "Total Liabilities Net Minority Interest"])
+    current_assets = fetch_balance(["Current Assets", "Total Current Assets"])
+    current_liabilities = fetch_balance(["Current Liabilities", "Total Current Liabilities"])
+    retained_earnings = fetch_balance(["Retained Earnings"])
+    ebit = fetch_financials(["EBIT", "Operating Income"])
+    sales = fetch_financials(["Total Revenue", "Sales"])
 
     share_price = info.get('regularMarketPrice')
     shares_outstanding = info.get('sharesOutstanding')
     market_cap = share_price * shares_outstanding if share_price and shares_outstanding else None
 
-    if None in [total_assets, total_liabilities, market_cap]:
-        return None, "Essential financial data missing."
+    if not all([total_assets, total_liabilities, market_cap]):
+        return None, "Essential data missing for computation."
 
     working_capital = (current_assets - current_liabilities) if current_assets and current_liabilities else 0
-    ratios = [
-        working_capital / total_assets,
-        retained_earnings / total_assets,
-        ebit / total_assets,
-        market_cap / total_liabilities,
-        sales / total_assets
-    ]
+    ratio1 = working_capital / total_assets
+    ratio2 = retained_earnings / total_assets
+    ratio3 = ebit / total_assets
+    ratio4 = market_cap / total_liabilities
+    ratio5 = sales / total_assets
 
-    z_score = 1.2 * ratios[0] + 1.4 * ratios[1] + 3.3 * ratios[2] + 0.6 * ratios[3] + ratios[4]
+    z_score = 1.2 * ratio1 + 1.4 * ratio2 + 3.3 * ratio3 + 0.6 * ratio4 + ratio5
 
     if z_score > 2.99:
         classification = "Safe Zone"
@@ -124,37 +129,27 @@ def compute_altman_z(ticker: str):
 # Investing Analysis Functions
 # ============================================
 
-def get_sp500_tickers():
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    soup = BeautifulSoup(requests.get(url).text, 'html.parser')
-    table = soup.find('table', {'id': 'constituents'})
-    return pd.read_html(str(table))[0]['Symbol'].tolist()
-
-def batch_fetch_info(tickers):
-    all_data = yf.Tickers(tickers)
+def extract_features(tickers):
     records = []
-
-    for ticker, obj in all_data.tickers.items():
+    for ticker in tickers:
         try:
-            info = obj.fast_info if hasattr(obj, 'fast_info') else obj.info
-            records.append({
-                'Ticker': ticker,
-                'Dividend Yield': info.get('dividendYield', np.nan),
-                'Expected Return': info.get('regularMarketPrice', np.nan),
-                'Stability': info.get('beta', np.nan)
-            })
+            info = yf.Ticker(ticker).info
+            dy = info.get('dividendYield', np.nan)
+            price = info.get('regularMarketPrice', np.nan)
+            beta = info.get('beta', np.nan)
         except Exception:
-            records.append({'Ticker': ticker, 'Dividend Yield': np.nan, 'Expected Return': np.nan, 'Stability': np.nan})
+            dy, price, beta = np.nan, np.nan, np.nan
+        records.append([ticker, dy, price, beta])
 
-    return pd.DataFrame(records)
+    return pd.DataFrame(records, columns=['Ticker', 'Dividend Yield', 'Expected Return', 'Stability'])
 
 def perform_clustering(df):
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
     scaler = StandardScaler()
-    scaled_features = scaler.fit_transform(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
+    features_scaled = scaler.fit_transform(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
 
     model = KMeans(n_clusters=3, random_state=42)
-    df_clean['Cluster'] = model.fit_predict(scaled_features)
+    df_clean['Cluster'] = model.fit_predict(features_scaled)
 
     return model, df_clean
 
@@ -162,16 +157,32 @@ def recommend_stocks(df, budget, model=None, preferences=None):
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
 
     if preferences:
-        df_clean = df_clean.sort_values(preferences.get('priority', 'Dividend Yield'), ascending=False)
+        priority = preferences.get('priority')
+        if priority == 'Dividend Yield':
+            df_clean = df_clean.sort_values('Dividend Yield', ascending=False)
+        elif priority == 'Expected Return':
+            df_clean = df_clean.sort_values('Expected Return', ascending=False)
+        elif priority == 'Stability':
+            df_clean = df_clean.sort_values('Stability', ascending=False)
 
     if model:
+        df_clean['Cluster'] = model.predict(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
         best_cluster = df_clean['Cluster'].mode()[0]
         df_clean = df_clean[df_clean['Cluster'] == best_cluster]
 
     selected = df_clean.head(5)
-    selected['Allocation'] = budget / len(selected)
+    allocation = budget / len(selected)
+    selected['Allocation'] = allocation
 
     return selected
+
+def get_sp500_tickers():
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    table = soup.find('table', {'id': 'constituents'})
+    df = pd.read_html(str(table))[0]
+    return df['Symbol'].tolist()
 
 # ============================================
 # Streamlit App
@@ -179,17 +190,22 @@ def recommend_stocks(df, budget, model=None, preferences=None):
 
 def explain_backend():
     st.subheader("Backend Explanation")
-    st.write(
-        "This app uses Yahoo Finance and web scraping for real-time financial data, "
-        "performs clustering on selected features for smarter stock picking, "
-        "calculates Altman Z-Score for financial health checks, and speeds up batch data fetching."
-    )
+    st.write("This app uses Yahoo Finance for financial data, performs clustering on features like dividend yield, expected return, and beta for recommendations, and calculates the Altman Z-Score to assess company bankruptcy risk.")
 
 def main():
-    st.title("Personalized Financial Dashboard")
+    st.title("📈 Personalized Financial Dashboard")
 
-    page = st.sidebar.radio("Navigation", ["Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Explain Backend"])
-    user_preferences = {'priority': st.sidebar.selectbox("Investment Priority", ['Dividend Yield', 'Expected Return', 'Stability'])}
+    page = st.sidebar.radio(
+        "Navigation", 
+        ["Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Explain Backend"]
+    )
+
+    user_preferences = {
+        'priority': st.sidebar.selectbox(
+            "Investment Priority", 
+            ['Dividend Yield', 'Expected Return', 'Stability']
+        )
+    }
 
     if page == "Dividend Dashboard":
         ticker = st.text_input("Enter Ticker", "AAPL")
@@ -200,7 +216,7 @@ def main():
         ticker = st.text_input("Enter Ticker for Z-Score", "AAPL", key="zscore")
         if st.button("Compute Altman Z-Score"):
             z_score, classification = compute_altman_z(ticker)
-            if z_score is not None:
+            if z_score:
                 st.success(f"Altman Z-Score: {z_score:.2f}")
                 st.info(f"Classification: {classification}")
             else:
@@ -208,15 +224,13 @@ def main():
 
     elif page == "Investing Analysis":
         budget = st.number_input("Investment Budget ($)", min_value=0)
-
         if st.button("Get Stock Recommendations"):
-            with st.spinner("Fetching stock data and analyzing... please wait"):
-                tickers = get_sp500_tickers()
-                features_df = batch_fetch_info(tickers)
-                model, clustered = perform_clustering(features_df)
-                recommendations = recommend_stocks(clustered, budget, model=model, preferences=user_preferences)
-
-            st.success("Analysis complete!")
+            tickers = get_sp500_tickers()
+            df_features = extract_features(tickers)
+            model, clustered = perform_clustering(df_features)
+            recommendations = recommend_stocks(
+                clustered, budget, model=model, preferences=user_preferences
+            )
             st.write("Top Recommended Stocks:")
             st.dataframe(recommendations)
 
