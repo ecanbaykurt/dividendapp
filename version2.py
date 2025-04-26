@@ -153,7 +153,7 @@ def perform_clustering(df):
 
     return model, df_clean
 
-def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20):
+def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
 
     # Filter based on user preferences
@@ -172,8 +172,9 @@ def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_sto
         best_cluster = df_clean['Cluster'].mode()[0]
         df_clean = df_clean[df_clean['Cluster'] == best_cluster]
 
-    # Apply a filter based on the available budget and minimum stock price
-    df_clean = df_clean[df_clean['Expected Return'] >= min_price_per_stock]
+    # Apply a filter based on the available budget and minimum/maximum stock price
+    df_clean = df_clean[(df_clean['Expected Return'] >= min_price_per_stock) & 
+                        (df_clean['Expected Return'] <= max_price_per_stock)]
 
     # Select top N stocks for the recommendation
     selected = df_clean.head(5)
@@ -228,19 +229,21 @@ def main():
         st.subheader("Personalized Financial Dashboard")
 
         budget = st.number_input("Investment Budget ($)", min_value=0)
-        # Investment Priority Dropdown and Minimum Stock Price
+        # Investment Priority Dropdown and Minimum and Maximum Stock Prices
         investment_priority = st.selectbox(
             "Select Investment Priority",
             ['Dividend Yield', 'Expected Return', 'Stability']
         )
         min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
+        max_price = st.number_input("Maximum Stock Price ($)", min_value=0, value=500)
 
         if st.button("Get Stock Recommendations"):
             tickers = get_sp500_tickers()
             df_features = extract_features(tickers)
             model, clustered = perform_clustering(df_features)
             recommendations = recommend_stocks(
-                clustered, budget, model=model, preferences={'priority': investment_priority}, min_price_per_stock=min_price
+                clustered, budget, model=model, preferences={'priority': investment_priority}, 
+                min_price_per_stock=min_price, max_price_per_stock=max_price
             )
             st.write("Top Recommended Stocks:")
             st.dataframe(recommendations)
