@@ -11,6 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from scipy import stats
 
 # ============================================
 # Dividend Dashboard Functions
@@ -144,8 +145,20 @@ def extract_features(tickers):
 
     return pd.DataFrame(records, columns=['Ticker', 'Dividend Yield', 'Expected Return', 'Stability'])
 
+def remove_outliers(df, columns):
+    """
+    Removes outliers from the specified columns using Z-Score method.
+    """
+    z_scores = np.abs(stats.zscore(df[columns].dropna()))
+    df_clean = df[(z_scores < 3).all(axis=1)]  # Remove rows with Z-scores > 3
+    return df_clean
+
 def perform_clustering(df):
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
+
+    # Remove outliers
+    df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
+
     scaler = StandardScaler()
     features_scaled = scaler.fit_transform(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
 
@@ -156,6 +169,9 @@ def perform_clustering(df):
 
 def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
+
+    # Remove outliers
+    df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
 
     if preferences:
         priority = preferences.get('priority')
