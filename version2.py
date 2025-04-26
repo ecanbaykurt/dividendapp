@@ -153,9 +153,10 @@ def perform_clustering(df):
 
     return model, df_clean
 
-def recommend_stocks(df, budget, model=None, preferences=None):
+def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20):
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
 
+    # Filter based on user preferences
     if preferences:
         priority = preferences.get('priority')
         if priority == 'Dividend Yield':
@@ -165,13 +166,20 @@ def recommend_stocks(df, budget, model=None, preferences=None):
         elif priority == 'Stability':
             df_clean = df_clean.sort_values('Stability', ascending=False)
 
+    # If clustering is used, filter the top cluster
     if model:
         df_clean['Cluster'] = model.predict(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
         best_cluster = df_clean['Cluster'].mode()[0]
         df_clean = df_clean[df_clean['Cluster'] == best_cluster]
 
+    # Apply a filter based on the available budget and minimum stock price
+    df_clean = df_clean[df_clean['Expected Return'] >= min_price_per_stock]
+
+    # Select top N stocks for the recommendation
     selected = df_clean.head(5)
-    allocation = budget / len(selected)
+    
+    # Allocate the budget across selected stocks
+    allocation = budget / len(selected) if len(selected) > 0 else 0
     selected['Allocation'] = allocation
 
     return selected
@@ -193,12 +201,19 @@ def explain_backend():
     st.write("This app uses Yahoo Finance for financial data, performs clustering on features like dividend yield, expected return, and beta for recommendations, and calculates the Altman Z-Score to assess company bankruptcy risk.")
 
 def main():
-    st.title("Personalized Investment Analysis")
+    st.title("📈 Personalized Financial Dashboard")
 
     page = st.sidebar.radio(
         "Navigation", 
         ["Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Explain Backend"]
     )
+
+    user_preferences = {
+        'priority': st.sidebar.selectbox(
+            "Investment Priority", 
+            ['Dividend Yield', 'Expected Return', 'Stability']
+        )
+    }
 
     if page == "Dividend Dashboard":
         ticker = st.text_input("Enter Ticker", "AAPL")
@@ -217,20 +232,13 @@ def main():
 
     elif page == "Investing Analysis":
         budget = st.number_input("Investment Budget ($)", min_value=0)
-        
-        # Investment Priority input here, below budget
-        investment_priority = st.selectbox(
-            "Investment Priority", 
-            ['Dividend Yield', 'Expected Return', 'Stability']
-        )
-
+        min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
         if st.button("Get Stock Recommendations"):
             tickers = get_sp500_tickers()
             df_features = extract_features(tickers)
             model, clustered = perform_clustering(df_features)
-            user_preferences = {'priority': investment_priority}
             recommendations = recommend_stocks(
-                clustered, budget, model=model, preferences=user_preferences
+                clustered, budget, model=model, preferences=user_preferences, min_price_per_stock=min_price
             )
             st.write("Top Recommended Stocks:")
             st.dataframe(recommendations)
