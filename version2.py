@@ -266,7 +266,7 @@ def main():
                 ax.text(center_x, center_y, center_z, f'Cluster {cluster_num}', fontsize=12, weight='bold', 
                         ha='center', va='center', bbox=dict(facecolor='white', alpha=0.6, edgecolor='black'))
 
-            plt.tight_layout(pad=3.0)
+            plt.tight_layout(pad=10.0)
 
             st.pyplot(fig)
 
