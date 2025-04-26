@@ -5,12 +5,13 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import requests
 from bs4 import BeautifulSoup
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from scipy import stats
-import plotly.express as px
 
 # ============================================
 # Dividend Dashboard Functions
@@ -32,13 +33,13 @@ def display_dividend_dashboard(ticker: str):
         recent_dividends = dividends.tail(10)
         st.write(recent_dividends)
 
-        fig = plt.figure(figsize=(10, 4))
-        ax = fig.add_subplot(111)
+        fig, ax = plt.subplots(figsize=(10, 4))
         ax.bar(recent_dividends.index, recent_dividends.values)
         ax.set_title("Dividend History (Last 10 Entries)")
         ax.set_xlabel("Date")
         ax.set_ylabel("Dividend ($)")
         plt.xticks(rotation=45)
+        plt.tight_layout()
         st.pyplot(fig)
 
     st.subheader("Price History (Last 1 Year)")
@@ -261,11 +262,27 @@ def main():
             """)
 
             # Visualize clusters in 3D
-            st.subheader("Cluster Visualization (Interactive 3D)")
-            fig = px.scatter_3d(clustered, x='Dividend Yield', y='Expected Return', z='Stability',
-                                color='Cluster', title='Stock Clusters in 3D',
-                                labels={'Dividend Yield': 'Dividend Yield', 'Expected Return': 'Expected Return', 'Stability': 'Stability'})
-            st.plotly_chart(fig)
+            st.subheader("Cluster Visualization (3D)")
+            fig = plt.figure(figsize=(15, 15))
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(clustered['Dividend Yield'], clustered['Expected Return'], clustered['Stability'], 
+                       c=clustered['Cluster'], cmap='viridis')
+
+            ax.set_xlabel('Dividend Yield')
+            ax.set_ylabel('Expected Return')
+            ax.set_zlabel('Stability')
+            ax.set_title('Stock Clusters in 3D')
+
+            # Add cluster labels at the center
+            for cluster_num in clustered['Cluster'].unique():
+                cluster_data = clustered[clustered['Cluster'] == cluster_num]
+                center_x = cluster_data['Dividend Yield'].mean()
+                center_y = cluster_data['Expected Return'].mean()
+                center_z = cluster_data['Stability'].mean()
+                ax.text(center_x, center_y, center_z, f'Cluster {cluster_num}', fontsize=12, weight='bold', 
+                        ha='center', va='center', bbox=dict(facecolor='white', alpha=0.6, edgecolor='black'))
+
+            st.pyplot(fig)
 
             preferences = {'priority': investment_priority}
             recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
