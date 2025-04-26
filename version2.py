@@ -208,13 +208,6 @@ def main():
         ["Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Explain Backend"]
     )
 
-    user_preferences = {
-        'priority': st.sidebar.selectbox(
-            "Investment Priority", 
-            ['Dividend Yield', 'Expected Return', 'Stability']
-        )
-    }
-
     if page == "Dividend Dashboard":
         ticker = st.text_input("Enter Ticker", "AAPL")
         if st.button("Show Dividend Info"):
@@ -231,14 +224,23 @@ def main():
                 st.error(f"Error: {classification}")
 
     elif page == "Investing Analysis":
+        # Personalized Financial Dashboard
+        st.subheader("Personalized Financial Dashboard")
+
         budget = st.number_input("Investment Budget ($)", min_value=0)
+        # Investment Priority Dropdown and Minimum Stock Price
+        investment_priority = st.selectbox(
+            "Select Investment Priority",
+            ['Dividend Yield', 'Expected Return', 'Stability']
+        )
         min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
+
         if st.button("Get Stock Recommendations"):
             tickers = get_sp500_tickers()
             df_features = extract_features(tickers)
             model, clustered = perform_clustering(df_features)
             recommendations = recommend_stocks(
-                clustered, budget, model=model, preferences=user_preferences, min_price_per_stock=min_price
+                clustered, budget, model=model, preferences={'priority': investment_priority}, min_price_per_stock=min_price
             )
             st.write("Top Recommended Stocks:")
             st.dataframe(recommendations)
