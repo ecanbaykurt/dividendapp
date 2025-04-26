@@ -193,11 +193,11 @@ def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_sto
     df_clean = df_clean[(df_clean['Expected Return'] >= min_price_per_stock) & 
                         (df_clean['Expected Return'] <= max_price_per_stock)]
 
-    # Corrected budget allocation by stock price
-    total_price = df_clean['Expected Return'].sum()  # Sum of all selected stock prices
-    df_clean['Allocation'] = df_clean['Expected Return'] / total_price * budget
+    selected = df_clean.head(5)
+    allocation = budget / len(selected) if len(selected) > 0 else 0
+    selected['Allocation'] = allocation
 
-    return df_clean.head(5)
+    return selected
 
 def get_sp500_tickers():
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
@@ -279,12 +279,16 @@ def main():
                 center_x = cluster_data['Dividend Yield'].mean()
                 center_y = cluster_data['Expected Return'].mean()
                 center_z = cluster_data['Stability'].mean()
-                ax.text(center_x, center_y, center_z, f'Cluster {cluster_num}', color='black')
+                ax.text(center_x, center_y, center_z, f'Cluster {cluster_num}', fontsize=12, weight='bold', 
+                        ha='center', va='center', bbox=dict(facecolor='white', alpha=0.6, edgecolor='black'))
 
             st.pyplot(fig)
 
-            recommendations = recommend_stocks(df_features, budget, model, {'priority': investment_priority}, min_price, max_price)
-            st.write(recommendations)
+            preferences = {'priority': investment_priority}
+            recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
+
+            st.subheader("Top Stock Picks for Your Budget")
+            st.write(recommended_stocks)
 
     elif page == "Explain Backend":
         explain_backend()
