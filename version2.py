@@ -239,8 +239,7 @@ def main():
                 st.error(f"Error: {classification}")
 
     elif page == "Investing Analysis":
-        st.subheader("Stock Recommendations")
-        st.write("This section provides stock recommendations based on your preferences.")
+        st.subheader("Input preferences below for personalized investment analysis:")
 
         budget = st.number_input("Investment Budget ($)", min_value=0)
         investment_priority = st.selectbox(
