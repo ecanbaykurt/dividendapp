@@ -193,16 +193,46 @@ def get_sp500_tickers():
     df = pd.read_html(str(table))[0]
     return df['Symbol'].tolist()
 
+def plot_clustering(df, model):
+    # Plotting the clustering results
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Scatter plot with different colors for each cluster
+    scatter = ax.scatter(
+        df['Dividend Yield'], df['Expected Return'], c=df['Cluster'], cmap='viridis', s=100, alpha=0.6
+    )
+    
+    # Add cluster labels to the plot
+    for i, row in df.iterrows():
+        ax.text(row['Dividend Yield'], row['Expected Return'], str(row['Cluster']), fontsize=9, ha='center')
+
+    ax.set_title("Clustering of Stocks Based on Investment Criteria")
+    ax.set_xlabel("Dividend Yield")
+    ax.set_ylabel("Expected Return")
+
+    # Add color legend for clusters
+    legend1 = ax.legend(*scatter.legend_elements(), title="Clusters")
+    ax.add_artist(legend1)
+
+    plt.tight_layout()
+    st.pyplot(fig)
+
+    # Explain clusters
+    st.write("""
+        ### What are Clusters?
+        Clusters represent groups of stocks that share similar characteristics based on the criteria you've selected (Dividend Yield, Expected Return, Stability). The clustering algorithm (KMeans) divides stocks into groups that are as similar as possible within the group and as different as possible between groups.
+
+        Stocks in the same cluster are expected to behave similarly in terms of the selected features. By using these clusters, we are focusing on recommending stocks from the cluster that best matches your preferences (i.e., whether you prioritize Dividend Yield, Expected Return, or Stability).
+
+        The numbers on the graph represent the cluster each stock belongs to. The goal is to identify the cluster that aligns with your financial goals and then invest accordingly.
+    """)
+
 # ============================================
 # Streamlit App
 # ============================================
 
-def explain_backend():
-    st.subheader("Backend Explanation")
-    st.write("This app uses Yahoo Finance for financial data, performs clustering on features like dividend yield, expected return, and beta for recommendations, and calculates the Altman Z-Score to assess company bankruptcy risk.")
-
 def main():
-    st.title("Personalized Investment Analysis")
+    st.title("📈 Personalized Financial Dashboard")
 
     page = st.sidebar.radio(
         "Navigation", 
@@ -226,7 +256,7 @@ def main():
 
     elif page == "Investing Analysis":
         # Personalized Financial Dashboard
-        st.subheader("Input your preferences below:")
+        st.subheader("Personalized Financial Dashboard")
 
         budget = st.number_input("Investment Budget ($)", min_value=0)
         # Investment Priority Dropdown and Minimum and Maximum Stock Prices
@@ -247,6 +277,9 @@ def main():
             )
             st.write("Top Recommended Stocks:")
             st.dataframe(recommendations)
+
+            # Plot the clustering graph and explain
+            plot_clustering(clustered, model)
 
     elif page == "Explain Backend":
         explain_backend()
