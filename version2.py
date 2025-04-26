@@ -6,6 +6,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import requests
 from bs4 import BeautifulSoup
 from sklearn.cluster import KMeans
@@ -244,23 +245,27 @@ def main():
             We recommend stocks from the 'best' cluster that matches your selected priority.
             """)
 
-            # Visualize clusters
-            st.subheader("Cluster Visualization")
-            fig, ax = plt.subplots(figsize=(10, 6))
-            scatter = ax.scatter(clustered['Dividend Yield'], clustered['Expected Return'], c=clustered['Cluster'], cmap='viridis')
+            # Visualize clusters in 3D
+            st.subheader("Cluster Visualization (3D)")
+            fig = plt.figure(figsize=(10, 8))
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(clustered['Dividend Yield'], clustered['Expected Return'], clustered['Stability'], 
+                       c=clustered['Cluster'], cmap='viridis')
+
             ax.set_xlabel('Dividend Yield')
             ax.set_ylabel('Expected Return')
-            ax.set_title('Stock Clusters')
+            ax.set_zlabel('Stability')
+            ax.set_title('Stock Clusters in 3D')
 
             # Add cluster labels at the center
             for cluster_num in clustered['Cluster'].unique():
                 cluster_data = clustered[clustered['Cluster'] == cluster_num]
                 center_x = cluster_data['Dividend Yield'].mean()
                 center_y = cluster_data['Expected Return'].mean()
-                ax.text(center_x, center_y, f'Cluster {cluster_num}', fontsize=12, weight='bold', 
+                center_z = cluster_data['Stability'].mean()
+                ax.text(center_x, center_y, center_z, f'Cluster {cluster_num}', fontsize=12, weight='bold', 
                         ha='center', va='center', bbox=dict(facecolor='white', alpha=0.6, edgecolor='black'))
 
-            plt.colorbar(scatter, ax=ax, label='Cluster')
             st.pyplot(fig)
 
             preferences = {'priority': investment_priority}
