@@ -151,9 +151,19 @@ def perform_clustering(df):
     
     return kmeans, df
 
-def recommend_stocks(df, budget, cluster_model=None):
+def recommend_stocks(df, budget, cluster_model=None, user_preferences=None):
     # Handle missing data
     df = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])  # Drop rows with missing values
+    
+    # Apply user preferences (e.g., prioritize dividend yield, stability, or expected return)
+    if user_preferences:
+        if user_preferences.get('priority') == 'Dividend Yield':
+            df = df.sort_values('Dividend Yield', ascending=False)
+        elif user_preferences.get('priority') == 'Expected Return':
+            df = df.sort_values('Expected Return', ascending=False)
+        elif user_preferences.get('priority') == 'Stability':
+            df = df.sort_values('Stability', ascending=False)
+    
     # If clustering model is passed, use it to cluster the stocks first
     if cluster_model:
         df['Cluster'] = cluster_model.predict(df[['Dividend Yield', 'Expected Return', 'Stability']].fillna(0))
@@ -162,7 +172,7 @@ def recommend_stocks(df, budget, cluster_model=None):
         df = df[df['Cluster'] == best_cluster]
     
     # Sorting by dividend yield
-    top = df.sort_values('Dividend Yield', ascending=False).head(5)
+    top = df.head(5)  # Select top 5 based on user preferences
     alloc = budget / len(top)  # Even allocation of budget
     top['Allocation'] = alloc
     return top
@@ -180,7 +190,7 @@ def get_sp500_tickers():
 ############################################
 
 def main():
-    st.title("Financial Dashboard")
+    st.title("Personalized Financial Dashboard")
 
     page = st.sidebar.radio("Select Page", [
         "Dividend Dashboard",
@@ -188,6 +198,11 @@ def main():
         "Investing Analysis",
         "Explain Backend"
     ])
+
+    # Personalization options
+    user_preferences = {
+        'priority': st.sidebar.selectbox("Choose your investment priority", ['Dividend Yield', 'Expected Return', 'Stability'])
+    }
 
     if page == "Dividend Dashboard":
         ticker = st.text_input("Ticker", "AAPL")
@@ -211,7 +226,7 @@ def main():
             tickers = get_sp500_tickers()
             df = extract_features(tickers)
             kmeans, clustered_stocks = perform_clustering(df)  # Perform clustering
-            recommended_stocks = recommend_stocks(clustered_stocks, budget, cluster_model=kmeans)
+            recommended_stocks = recommend_stocks(clustered_stocks, budget, cluster_model=kmeans, user_preferences=user_preferences)
             st.write("Recommended Stocks for Investment:")
             st.write(recommended_stocks)
 
