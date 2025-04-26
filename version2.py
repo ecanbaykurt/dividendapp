@@ -246,20 +246,28 @@ def main():
 
             # Visualize clusters
             st.subheader("Cluster Visualization")
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(10, 6))
             scatter = ax.scatter(clustered['Dividend Yield'], clustered['Expected Return'], c=clustered['Cluster'], cmap='viridis')
             ax.set_xlabel('Dividend Yield')
             ax.set_ylabel('Expected Return')
             ax.set_title('Stock Clusters')
-            plt.colorbar(scatter, label='Cluster')
+
+            # Add cluster labels at the center
+            for cluster_num in clustered['Cluster'].unique():
+                cluster_data = clustered[clustered['Cluster'] == cluster_num]
+                center_x = cluster_data['Dividend Yield'].mean()
+                center_y = cluster_data['Expected Return'].mean()
+                ax.text(center_x, center_y, f'Cluster {cluster_num}', fontsize=12, weight='bold', 
+                        ha='center', va='center', bbox=dict(facecolor='white', alpha=0.6, edgecolor='black'))
+
+            plt.colorbar(scatter, ax=ax, label='Cluster')
             st.pyplot(fig)
 
-            recommendations = recommend_stocks(
-                clustered, budget, model=model, preferences={'priority': investment_priority}, 
-                min_price_per_stock=min_price, max_price_per_stock=max_price
-            )
-            st.subheader("Top Recommended Stocks:")
-            st.dataframe(recommendations)
+            preferences = {'priority': investment_priority}
+            recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
+
+            st.subheader("Top Stock Picks for Your Budget")
+            st.write(recommended_stocks)
 
     elif page == "Explain Backend":
         explain_backend()
