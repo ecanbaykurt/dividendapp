@@ -193,19 +193,12 @@ def explain_backend():
     st.write("This app uses Yahoo Finance for financial data, performs clustering on features like dividend yield, expected return, and beta for recommendations, and calculates the Altman Z-Score to assess company bankruptcy risk.")
 
 def main():
-    st.title("📈 Personalized Financial Dashboard")
+    st.title("Personalized Investment Analysis")
 
     page = st.sidebar.radio(
         "Navigation", 
         ["Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Explain Backend"]
     )
-
-    user_preferences = {
-        'priority': st.sidebar.selectbox(
-            "Investment Priority", 
-            ['Dividend Yield', 'Expected Return', 'Stability']
-        )
-    }
 
     if page == "Dividend Dashboard":
         ticker = st.text_input("Enter Ticker", "AAPL")
@@ -224,10 +217,18 @@ def main():
 
     elif page == "Investing Analysis":
         budget = st.number_input("Investment Budget ($)", min_value=0)
+        
+        # Investment Priority input here, below budget
+        investment_priority = st.selectbox(
+            "Investment Priority", 
+            ['Dividend Yield', 'Expected Return', 'Stability']
+        )
+
         if st.button("Get Stock Recommendations"):
             tickers = get_sp500_tickers()
             df_features = extract_features(tickers)
             model, clustered = perform_clustering(df_features)
+            user_preferences = {'priority': investment_priority}
             recommendations = recommend_stocks(
                 clustered, budget, model=model, preferences=user_preferences
             )
