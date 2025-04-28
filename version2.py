@@ -318,7 +318,7 @@ def main():
             preferences = {'priority': investment_priority}
             recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
 
-            st.subheader("Top Stock Picks for Your Budget")
+            st.subheader("Top Stock Picks for Your Budget and Preferences")
             st.write(recommended_stocks)
 
     elif page == "Explain Backend":
