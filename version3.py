@@ -17,11 +17,9 @@ from sklearn.neighbors import KernelDensity
 import plotly.express as px
 from sklearn.datasets import make_blobs
 
-
 # ============================================
 # Dividend Dashboard Functions
 # ============================================
-
 def display_dividend_dashboard(ticker: str):
     ticker_obj = yf.Ticker(ticker)
     info = ticker_obj.info
@@ -78,7 +76,6 @@ def display_dividend_dashboard(ticker: str):
 # ============================================
 # Altman Z-Score Functions
 # ============================================
-
 def compute_altman_z(ticker: str):
     ticker_obj = yf.Ticker(ticker)
     bs = ticker_obj.balance_sheet
@@ -133,121 +130,10 @@ def compute_altman_z(ticker: str):
     return z_score, classification
 
 # ============================================
-# Investing Analysis Functions 
-# ============================================
-
-def extract_features(tickers):
-    records = []
-    for ticker in tickers:
-        try:
-            info = yf.Ticker(ticker).info
-            dy = info.get('dividendYield', np.nan)
-            growth = info.get('earningsGrowth', np.nan)
-            price = info.get('regularMarketPrice', np.nan)
-            beta = info.get('beta', np.nan)
-            expected_return = (dy or 0) + (growth or 0)
-        except Exception:
-            dy, growth, price, beta, expected_return = np.nan, np.nan, np.nan, np.nan, np.nan
-        records.append([ticker, dy, price, beta, expected_return])
-
-    return pd.DataFrame(records, columns=['Ticker', 'Dividend Yield', 'Price', 'Stability', 'Expected Return'])
-
-def remove_outliers(df, columns):
-    z_scores = np.abs(stats.zscore(df[columns].dropna()))
-    df_clean = df[(z_scores < 3).all(axis=1)]
-    return df_clean
-
-def perform_clustering(df):
-    df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
-    df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
-    scaler = StandardScaler()
-    features_scaled = scaler.fit_transform(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
-    model = KMeans(n_clusters=3, random_state=42)
-    df_clean['Cluster'] = model.fit_predict(features_scaled)
-    return model, df_clean
-
-def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
-    df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
-    df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
-
-    if preferences:
-        priority = preferences.get('priority')
-        if priority == 'Dividend Yield':
-            df_clean = df_clean.sort_values('Dividend Yield', ascending=False)
-        elif priority == 'Expected Return':
-            df_clean = df_clean.sort_values('Expected Return', ascending=False)
-        elif priority == 'Stability':
-            df_clean = df_clean.sort_values('Stability', ascending=False)
-
-    if model:
-        features = df_clean[['Dividend Yield', 'Expected Return', 'Stability']]
-        scaler = StandardScaler()
-        features_scaled = scaler.fit_transform(features)
-        df_clean['Cluster'] = model.predict(features_scaled)
-        best_cluster = df_clean['Cluster'].mode()[0]
-        df_clean = df_clean[df_clean['Cluster'] == best_cluster]
-
-    df_clean = df_clean[(df_clean['Price'] >= min_price_per_stock) & 
-                        (df_clean['Price'] <= max_price_per_stock)]
-
-    selected = df_clean.head(5)
-    allocation = budget / len(selected) if len(selected) > 0 else 0
-    selected['Allocation'] = allocation
-
-    return selected
-
-def get_sp500_tickers():
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    table = soup.find('table', {'id': 'constituents'})
-    df = pd.read_html(str(table))[0]
-    return df['Symbol'].tolist()
-
-# ============================================
 # Sector Density Explorer Functions
 # ============================================
-
-st.markdown("### 🔍 Stock Proximity Explorer")
-
-query = st.text_input("Enter a Ticker (e.g., TICK123)")
-if query in df['ticker'].values:
-    stock = df[df['ticker'] == query].iloc[0]
-    st.info(f"{query} is in **{stock['sector']}** sector, cluster #{stock['cluster']}.")
-
-    df['distance'] = np.linalg.norm(df[['x','y','z']].values - stock[['x','y','z']].values, axis=1)
-    nearby = df[df['ticker'] != query].sort_values('distance')
-
-    def classify_tier(dist):
-        if dist < 0.3:
-            return 'Tier 1 🔴'
-        elif dist < 0.6:
-            return 'Tier 2 🟠'
-        elif dist < 1.0:
-            return 'Tier 3 🟡'
-        else:
-            return 'Tier 4 ⚪'
-
-    nearby['Tier'] = nearby['distance'].apply(classify_tier)
-
-    st.markdown("#### 📊 Closest Competitors")
-    st.dataframe(nearby[['ticker', 'sector', 'cluster', 'distance', 'Tier']].head(10))
-
-    fig = px.scatter_3d(
-        df, x='x', y='y', z='z',
-        color='sector',
-        symbol=df['ticker'].apply(lambda t: 'star' if t == query else 'circle'),
-        hover_data=['ticker', 'cluster'],
-        title=f"🧭 Position of {query} Among Competitors"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-else:
-    st.warning("Ticker not found. Please try one from the list like 'TICK1', 'TICK78' etc.")
-
-
 def display_sector_density():
-    st.title("🌌 Sector Density Explorer")
+    st.title("\ud83c\udf0c Sector Density Explorer")
 
     sectors = ['Technology', 'Finance', 'Healthcare', 'Energy', 'Industrial', 'Retail', 'Media', 'Transportation']
     X, y = make_blobs(n_samples=2000, centers=len(sectors), n_features=5, random_state=42)
@@ -278,36 +164,35 @@ def display_sector_density():
             sector_data = sector_data.copy()
             sector_data['density'] = density
 
-fig = px.scatter_3d(
-    sector_data,
-    x='x', y='y', z='z',
-    color='density',
-    color_continuous_scale='YlOrRd',  # Slightly softer than 'Hot'
-    hover_data={
-        'ticker': True,
-        'cluster': True,
-        'density': ':.3f'
-    },
-    title=f"📊 {sector} Sector Density Map",
-    width=1000,
-    height=700
-)
+            fig = px.scatter_3d(
+                sector_data,
+                x='x', y='y', z='z',
+                color='density',
+                color_continuous_scale='YlOrRd',
+                hover_data={
+                    'ticker': True,
+                    'cluster': True,
+                    'density': ':.3f'
+                },
+                title=f"\ud83d\udcca {sector} Sector Density Map",
+                width=1000,
+                height=700
+            )
 
-fig.update_traces(marker=dict(size=4, opacity=0.8))
-fig.update_layout(
-    margin=dict(l=0, r=0, b=0, t=40),
-    scene=dict(
-        xaxis_title="UMAP X",
-        yaxis_title="UMAP Y",
-        zaxis_title="UMAP Z"
-    ),
-    coloraxis_colorbar=dict(
-        title="Density",
-        tickformat=".2f"
-    )
-)
-st.plotly_chart(fig, use_container_width=True)
-
+            fig.update_traces(marker=dict(size=4, opacity=0.8))
+            fig.update_layout(
+                margin=dict(l=0, r=0, b=0, t=40),
+                scene=dict(
+                    xaxis_title="UMAP X",
+                    yaxis_title="UMAP Y",
+                    zaxis_title="UMAP Z"
+                ),
+                coloraxis_colorbar=dict(
+                    title="Density",
+                    tickformat=".2f"
+                )
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
         if len(selected_sectors) == 2:
             sec1, sec2 = selected_sectors
@@ -317,20 +202,19 @@ st.plotly_chart(fig, use_container_width=True)
             hidden_competitors_sec1 = data_sec1[data_sec1['cluster'].isin(common_clusters)]
             hidden_competitors_sec2 = data_sec2[data_sec2['cluster'].isin(common_clusters)]
 
-            st.subheader("💥 Hidden Competitors Detected")
+            st.subheader("\ud83d\udca5 Hidden Competitors Detected")
             st.write(hidden_competitors_sec1[['ticker', 'cluster']])
             st.write(hidden_competitors_sec2[['ticker', 'cluster']])
 
 # ============================================
 # Streamlit Main App
 # ============================================
-
 def main():
     st.title("Financial Dashboard")
 
     page = st.sidebar.radio(
         "Navigation", 
-        ["Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Sector Density Explorer", "Explain Backend"]
+        ["Dividend Dashboard", "Altman Z-Score", "Sector Density Explorer"]
     )
 
     if page == "Dividend Dashboard":
@@ -348,16 +232,8 @@ def main():
             else:
                 st.error(f"Error: {classification}")
 
-    elif page == "Investing Analysis":
-        # your previous Investing Analysis page code
-        st.subheader("Input preferences below for personalized investment analysis:")
-        # [the rest of your investing code here]
-
     elif page == "Sector Density Explorer":
         display_sector_density()
-
-    elif page == "Explain Backend":
-        explain_backend()
 
 if __name__ == "__main__":
     main()
