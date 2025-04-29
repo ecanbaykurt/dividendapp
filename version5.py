@@ -537,25 +537,6 @@ def sector_competitor_explorer():
 """)
     st.write("This function allows users to input a stock ticker and identifies other companies within the same sector from the custom dataset. It filters the data and displays competitors along with their profitability ratios.")
 
-```python
-with st.expander("Hidden Competitor Neural Map Code"):
-    st.subheader("UMAP 3D Projection & Visualization")
-    st.code("""
-def hidden_competitor_neural_map():
-    ...
-    trimmed_df = pd.read_csv("your_cleaned_trimmed_df.csv")
-    umap_embeddings_3d = np.load("your_umap_embeddings.npy")
-    plot_df_3d = pd.DataFrame({...})
-
-    view_mode = st.radio("Choose view type:", ["🔥 Sector Density Heatmap", "🌐 All Industry Cluster Map"])
-    ...
-""")
-    st.write("This module visualizes hidden competitor relationships using 3D UMAP projections of sentence embeddings. It offers two modes: a sector-specific density heatmap and a full industry cluster map.")
-    st.markdown("""
-- **Sector Density Heatmap:** Highlights concentration of companies in a selected sector based on their semantic similarity.  
-- **All Industry Cluster Map:** Displays all companies with color-coded clusters and sector center labels, enabling intuitive exploration of market positioning based on business descriptions.
-""")
-
 # --- Streamlit Main App ---
 def main():
     st.title("🏦 Financial Dashboard")
