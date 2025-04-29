@@ -2,6 +2,9 @@
 # Import Libraries
 # ============================================
 import streamlit as st
+st.set_page_config(page_title="Financial Dashboard", layout="wide")
+
+import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
