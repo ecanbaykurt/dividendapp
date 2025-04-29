@@ -324,21 +324,22 @@ def hidden_competitor_neural_map():
         )
 
         fig.update_layout(
-            scene=dict(
-                xaxis=dict(backgroundcolor='white', gridcolor='lightgrey'),
-                yaxis=dict(backgroundcolor='white', gridcolor='lightgrey'),
-                zaxis=dict(backgroundcolor='white', gridcolor='lightgrey'),
-                bgcolor='white'
-            ),
-            paper_bgcolor='white',
-            plot_bgcolor='white',
-            font=dict(color='black', size=12),
-            coloraxis_colorbar=dict(
-                title="Density",
-                tickvals=[density.min(), density.mean(), density.max()],
-                ticktext=["Low", "Medium", "High"]
-            )
-        )
+    scene=dict(
+        xaxis=dict(backgroundcolor='#0e1117', gridcolor='grey', color='white'),
+        yaxis=dict(backgroundcolor='#0e1117', gridcolor='grey', color='white'),
+        zaxis=dict(backgroundcolor='#0e1117', gridcolor='grey', color='white'),
+        bgcolor='#0e1117'
+    ),
+    paper_bgcolor='#0e1117',
+    plot_bgcolor='#0e1117',
+    font=dict(color='white', size=12),
+    title_font=dict(color='white'),
+    coloraxis_colorbar=dict(
+        title="Density",
+        tickvals=[density.min(), density.mean(), density.max()],
+        ticktext=["Low", "Medium", "High"]
+    )
+)
 
         st.plotly_chart(fig, use_container_width=True)
 
