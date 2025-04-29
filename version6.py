@@ -292,6 +292,147 @@ def explain_backend():
 - **Sector Competitor Explorer:** Allows exploration of companies in the same sector based on selected ticker.
 - **Hidden Competitor Neural Map:** Reveals semantic similarities among companies using 3D UMAP embedding.
     """)
+def explain_backend():
+    st.title("Backend Code Explanation")
+
+    st.markdown("## Imports & Setup")
+    st.code("""
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import requests
+from bs4 import BeautifulSoup
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from scipy import stats
+""")
+    st.write("Libraries for UI, data retrieval, parsing, clustering, scaling, and statistics.")
+
+    with st.expander("Dividend Dashboard Code"):
+        st.subheader("Function Definition")
+        st.code("def display_dividend_dashboard(ticker: str):")
+        st.write("Main function driving the Dividend Dashboard page.")
+        
+        st.subheader("Data Fetching & Summary")
+        st.code("""
+t_obj = yf.Ticker(ticker)
+info = t_obj.info
+if 'longBusinessSummary' in info:
+    st.write(info['longBusinessSummary'])
+else:
+    st.write("No overview available.")
+""")
+        st.write("Retrieves company metadata and displays the business summary.")
+
+        st.subheader("Plotting Dividends")
+        st.code("""
+dividends = t_obj.dividends
+data_to_plot = dividends.tail(10)
+fig_div, ax_div = plt.subplots(figsize=(10,4))
+ax_div.bar(data_to_plot.index, data_to_plot)
+st.pyplot(fig_div)
+""")
+        st.write("Visualizes the last 10 dividend payments as a bar chart.")
+        
+        st.subheader("Key Metrics Calculation")
+        st.code("""
+trailing_eps = info.get('trailingEps')
+dividend_rate = info.get('dividendRate')
+dividend_payout_ratio = dividend_rate / trailing_eps
+""")
+        st.write("Calculates payout ratio from dividends and earnings.")
+
+    with st.expander("Altman Z-Score Code"):
+        st.subheader("Loading Financials")
+        st.code("""
+bs = t_obj.balance_sheet
+fs = t_obj.financials
+""")
+        st.write("Loads balance sheet and income statement into DataFrames.")
+
+        st.subheader("Extracting Key Values")
+        st.code("""
+total_assets = get_bs_value(bs, bs_col, ['Total Assets'])
+total_liabilities = get_bs_value(bs, bs_col, [
+    'Total Liab',
+    'Total Liabilities',
+    'Total Liabilities Net Minority Interest'
+])
+""")
+        st.write("Handles multiple liability labels to ensure correct data capture.")
+
+        st.subheader("Computing Ratios")
+        st.code("""
+ratio1 = working_capital / total_assets
+ratio2 = retained_earnings / total_assets
+ratio3 = ebit / total_assets
+ratio4 = market_value_of_equity / total_liabilities
+ratio5 = sales / total_assets
+""")
+        st.write("Five financial ratios per Altman's methodology.")
+
+        st.subheader("Z-Score & Classification")
+        st.code("""
+z_score = 1.2*ratio1 + 1.4*ratio2 + 3.3*ratio3 + 0.6*ratio4 + ratio5
+
+if z_score > 2.99:
+    classification = 'Safe Zone'
+elif z_score >= 1.81:
+    classification = 'Grey Zone'
+else:
+    classification = 'Distressed Zone'
+""")
+        st.write("Combines ratios into Z and categorizes risk levels.")
+        st.markdown("*Ranges:*  \n- Safe Zone: Z > 2.99  \n- Grey Zone: 1.81 ≤ Z ≤ 2.99  \n- Distressed Zone: Z < 1.81")
+
+    with st.expander("Investing Analysis Code"):
+        st.subheader("Fetching Tickers & Features")
+        st.code("""
+tickers = get_sp500_tickers()
+df = extract_features(tickers)
+""")
+        st.write("Scrapes the S&P 500 list and pulls Dividend Yield, Price, and Stability for each ticker.")
+
+        st.subheader("Clustering Overview")
+        st.write("""
+We apply *KMeans* with *n_clusters=3* to segment our universe into three distinct groups:
+
+- *Cluster 0 (Income Focus):*  
+  High dividend yields with moderate stability.
+
+- *Cluster 1 (Growth Focus):*  
+  Elevated expected returns (price + earnings growth), but higher volatility.
+
+- *Cluster 2 (Stability Focus):*  
+  Lower volatility and stable returns, with moderate yields.
+
+This replaces any elbow-method step: we fix three clusters to correspond to these three investment styles.
+""")
+
+        st.subheader("Recommendation Logic")
+        st.code("""
+selected = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
+""")
+        st.write("Filters by price & user preferences, then allocates your budget evenly across the top picks in the chosen cluster.")
+
+with st.expander("Sector Competitor Explorer Code"):
+    st.subheader("Loading and Filtering Sector Data")
+    st.code("""
+def sector_competitor_explorer():
+    ...
+    trimmed_df = pd.read_csv("your_cleaned_trimmed_df.csv")
+    ticker_input = st.text_input("Enter a Ticker to Find Sector Competitors", "AAPL").upper()
+
+    if st.button("Find Competitors"):
+        if ticker_input in trimmed_df['ticker'].values:
+            sector = trimmed_df.loc[trimmed_df['ticker'] == ticker_input, 'sector'].values[0]
+            competitors = trimmed_df[trimmed_df['sector'] == sector]
+            ...
+""")
+    st.write("This function allows users to input a stock ticker and identifies other companies within the same sector from the custom dataset. It filters the data and displays competitors along with their profitability ratios.")
+
 
 # ============================================
 # Streamlit Main App
