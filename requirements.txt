@@ -14,4 +14,5 @@ scipy
 beautifulsoup4
 plotly
 umap-learn
+plotly
 
