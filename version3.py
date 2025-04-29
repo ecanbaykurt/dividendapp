@@ -239,9 +239,6 @@ def get_sp500_tickers():
     df = pd.read_html(str(table))[0]
     return df['Symbol'].tolist()
 
-# ============================================
-# Sector Density Explorer Functions
-# ============================================
 
 # ============================================
 # FINAL UPDATED version3.py (with 2 new pages)
@@ -300,10 +297,11 @@ def hidden_competitor_neural_map():
     df['Ticker'] = ['TICK' + str(i) for i in range(len(df))]
 
     # UMAP embedding
-    reducer = umap.UMAP(n_components=2, random_state=42)
+    reducer = umap.UMAP(n_components=3, random_state=42)
     embedding = reducer.fit_transform(df[[f'Feature{i}' for i in range(6)]])
     df['x'] = embedding[:,0]
     df['y'] = embedding[:,1]
+    df['z'] = embedding[:,2]
 
     # Interactive scatter
     fig = px.scatter(
