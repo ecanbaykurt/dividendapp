@@ -330,8 +330,8 @@ def hidden_competitor_neural_map():
                 zaxis=dict(backgroundcolor='white', gridcolor='lightgrey'),
                 bgcolor='white'
             ),
-            paper_bgcolor='white',
-            plot_bgcolor='white',
+            paper_bgcolor='dark',
+            plot_bgcolor='dark',
             font=dict(color='black', size=12),
             coloraxis_colorbar=dict(
                 title="Density",
