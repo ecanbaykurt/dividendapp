@@ -454,11 +454,14 @@ def explain_backend():
     st.write("This app uses Yahoo Finance for financial data, performs clustering on features like dividend yield, expected return, and beta for recommendations, and calculates the Altman Z-Score to assess company bankruptcy risk.")
 
 def main():
-    st.title("Financial Dashboard")
+    st.set_page_config(page_title="Financial Dashboard", layout="wide")
+    st.title("🏦 Financial Dashboard")
 
+    # 🌐 Default to "Hidden Competitor Neural Map"
     page = st.sidebar.radio(
         "Navigation", 
-        ["Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Explain Backend"]
+        ["Hidden Competitor Neural Map", "Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Sector Competitor Explorer", "Explain Backend"],
+        index=0  # Default selected is "Hidden Competitor Neural Map"
     )
 
     if page == "Dividend Dashboard":
@@ -492,15 +495,12 @@ def main():
             df_features = extract_features(tickers)
             model, clustered = perform_clustering(df_features)
 
-            # Explain clustering
             st.subheader("How Clustering Works")
             st.write("""
-            Stocks are grouped into clusters based on similarities in their dividend yield, expected return (based on financial metrics), and stability (volatility measured by beta).
-            We recommend stocks from the 'best' cluster that matches your selected priority.
+            Stocks are grouped into clusters based on similarities in their dividend yield, expected return, and stability.
+            We recommend stocks from the 'best' cluster matching your selected priority.
             """)
 
-            # Visualize clusters in 3D
-            st.subheader("Cluster Visualization (3D)")
             fig = plt.figure(figsize=(15, 15))
             ax = fig.add_subplot(111, projection='3d')
             ax.scatter(clustered['Dividend Yield'], clustered['Expected Return'], clustered['Stability'], 
@@ -511,14 +511,13 @@ def main():
             ax.set_zlabel('Stability')
             ax.set_title('Stock Clusters in 3D')
 
-            # Add cluster labels at the center
             for cluster_num in clustered['Cluster'].unique():
                 cluster_data = clustered[clustered['Cluster'] == cluster_num]
-                center_x = cluster_data['Dividend Yield'].mean()
-                center_y = cluster_data['Expected Return'].mean()
-                center_z = cluster_data['Stability'].mean()
-                ax.text(center_x, center_y, center_z, f'Cluster {cluster_num}', fontsize=12, weight='bold', 
-                        ha='center', va='center', bbox=dict(facecolor='white', alpha=0.6, edgecolor='black'))
+                cx = cluster_data['Dividend Yield'].mean()
+                cy = cluster_data['Expected Return'].mean()
+                cz = cluster_data['Stability'].mean()
+                ax.text(cx, cy, cz, f'Cluster {cluster_num}', fontsize=12, weight='bold', ha='center', va='center',
+                        bbox=dict(facecolor='white', alpha=0.6, edgecolor='black'))
 
             st.pyplot(fig)
 
@@ -527,6 +526,12 @@ def main():
 
             st.subheader("Top Stock Picks for Your Budget and Preferences")
             st.write(recommended_stocks)
+
+    elif page == "Sector Competitor Explorer":
+        sector_competitor_explorer()
+
+    elif page == "Hidden Competitor Neural Map":
+        hidden_competitor_neural_map()
 
     elif page == "Explain Backend":
         explain_backend()
