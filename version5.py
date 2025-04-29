@@ -537,8 +537,6 @@ def sector_competitor_explorer():
 """)
     st.write("This function allows users to input a stock ticker and identifies other companies within the same sector from the custom dataset. It filters the data and displays competitors along with their profitability ratios.")
 
----
-
 ```python
 with st.expander("Hidden Competitor Neural Map Code"):
     st.subheader("UMAP 3D Projection & Visualization")
