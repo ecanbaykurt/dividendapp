@@ -500,12 +500,12 @@ Clusters of competitors are plotted across all sectors, showing hidden patterns 
 
 ---
 
-Would you also like me to show you how to create an automatic 📋 **Table of Contents** at the top so users can click and jump to any section easily? 🚀 (very clean and professional!)  
+Would you also like me to show you how to create an automatic  **Table of Contents** at the top so users can click and jump to any section easily? 🚀 (very clean and professional!)  
 👉 *(It takes only 5 more lines.)*
 
 # --- Streamlit Main App ---
 def main():
-    st.title("🏦 Financial Dashboard")
+    st.title(" Financial Dashboard")
 
     page = st.sidebar.radio(
         "Navigation", 
