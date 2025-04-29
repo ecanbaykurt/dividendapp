@@ -12,6 +12,8 @@ from bs4 import BeautifulSoup
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from scipy import stats
+from sklearn.datasets import make_blobs
+
 
 # ============================================
 # Dividend Dashboard Functions
