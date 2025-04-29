@@ -1,6 +1,3 @@
-# ============================================
-# Import Libraries
-# ============================================
 import streamlit as st
 st.set_page_config(page_title="Financial Dashboard", layout="wide")
 
@@ -18,9 +15,6 @@ from sklearn.datasets import make_blobs
 import plotly.graph_objects as go
 import plotly.express as px
 from sklearn.neighbors import KernelDensity
-
-
-
 # ============================================
 # Dividend Dashboard Functions
 # ============================================
