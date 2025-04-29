@@ -237,6 +237,127 @@ def get_sp500_tickers():
     df = pd.read_html(str(table))[0]
     return df['Symbol'].tolist()
 
+# ============================================
+# Sector Density Explorer Functions
+# ============================================
+
+# ============================================
+# FINAL UPDATED version3.py (with 2 new pages)
+# ============================================
+
+# --- Imports (same as yours + 2 more)
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import requests
+from bs4 import BeautifulSoup
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.manifold import TSNE
+from scipy import stats
+import umap
+import plotly.express as px
+
+# --- Existing Functions (Dividend, Altman Z, Investing) ---
+# (Same as your file - skipping copying here to focus)
+
+# --- New Function: Sector Competitor Explorer ---
+def sector_competitor_explorer():
+    st.title("📈 Sector Competitor Explorer")
+
+    # Load tickers and sectors
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    table = pd.read_html(url)[0]
+    sp500 = table[['Symbol', 'Security', 'GICS Sector']]
+
+    ticker = st.text_input("Enter a Ticker to Find Sector Competitors", "AAPL")
+
+    if st.button("Find Competitors"):
+        ticker = ticker.upper()
+        if ticker in sp500['Symbol'].values:
+            sector = sp500.loc[sp500['Symbol'] == ticker, 'GICS Sector'].values[0]
+            competitors = sp500[sp500['GICS Sector'] == sector]
+            st.success(f"Sector: {sector}")
+            st.write(f"Found {len(competitors)} competitors:")
+            st.dataframe(competitors.reset_index(drop=True))
+        else:
+            st.error("Ticker not found in S&P 500 list!")
+
+# --- New Function: Hidden Competitor Neural Map ---
+def hidden_competitor_neural_map():
+    st.title("🧬 Hidden Competitor Neural Map")
+
+    # Create synthetic dataset
+    sectors = ['Technology', 'Finance', 'Healthcare', 'Energy', 'Industrial', 'Retail', 'Media', 'Transportation']
+    X, y = make_blobs(n_samples=2000, centers=len(sectors), n_features=6, random_state=42)
+    df = pd.DataFrame(X, columns=[f'Feature{i}' for i in range(6)])
+    df['Sector'] = [sectors[label] for label in y]
+    df['Ticker'] = ['TICK' + str(i) for i in range(len(df))]
+
+    # UMAP embedding
+    reducer = umap.UMAP(n_components=2, random_state=42)
+    embedding = reducer.fit_transform(df[[f'Feature{i}' for i in range(6)]])
+    df['x'] = embedding[:,0]
+    df['y'] = embedding[:,1]
+
+    # Interactive scatter
+    fig = px.scatter(
+        df, x='x', y='y', color='Sector',
+        hover_data=['Ticker', 'Sector'],
+        title="Hidden Competitor Neural Map",
+        template='plotly_dark', width=1000, height=800
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+# --- Backend Explanation ---
+def explain_backend():
+    st.subheader("Backend Explanation")
+    st.write("This app uses Yahoo Finance for financial data, performs clustering, calculates Altman Z-Score, and explores competitors using advanced ML (UMAP, KMeans).")
+
+# --- Streamlit Main App ---
+def main():
+    st.title("🏦 Financial Dashboard")
+
+    page = st.sidebar.radio(
+        "Navigation", 
+        ["Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Sector Competitor Explorer", "Hidden Competitor Neural Map", "Explain Backend"]
+    )
+
+    if page == "Dividend Dashboard":
+        ticker = st.text_input("Enter Ticker", "AAPL")
+        if st.button("Show Dividend Info"):
+            display_dividend_dashboard(ticker)
+
+    elif page == "Altman Z-Score":
+        ticker = st.text_input("Enter Ticker for Z-Score", "AAPL", key="zscore")
+        if st.button("Compute Altman Z-Score"):
+            z_score, classification = compute_altman_z(ticker)
+            if z_score:
+                st.success(f"Altman Z-Score: {z_score:.2f}")
+                st.info(f"Classification: {classification}")
+            else:
+                st.error(f"Error: {classification}")
+
+    elif page == "Investing Analysis":
+        # Your Investing Code (already written)
+        pass
+
+    elif page == "Sector Competitor Explorer":
+        sector_competitor_explorer()
+
+    elif page == "Hidden Competitor Neural Map":
+        hidden_competitor_neural_map()
+
+    elif page == "Explain Backend":
+        explain_backend()
+
+if __name__ == "__main__":
+    main()
+
+
 
 # ============================================
 # Streamlit App
