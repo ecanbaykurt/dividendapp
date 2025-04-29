@@ -492,11 +492,11 @@ Clusters of competitors are plotted across all sectors, showing hidden patterns 
 
 ## 🎯 Now your "Backend Explanation" will be organized like:
 
-- 📈 Dividend Dashboard
-- 🧮 Altman Z-Score
-- 💹 Investing Analysis
-- 📊 Sector Competitor Explorer
-- 🧬 Hidden Competitor Neural Map
+-  Dividend Dashboard
+-  Altman Z-Score
+-  Investing Analysis
+-  Sector Competitor Explorer
+-  Hidden Competitor Neural Map
 
 ---
 
