@@ -448,24 +448,31 @@ if __name__ == "__main__":
 # ============================================
 # Streamlit App
 # ============================================
+
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+
+# ✅ Set this before any other Streamlit command
 st.set_page_config(page_title="Financial Dashboard", layout="wide")
+
+# ============================================
+# Your Functions (already defined elsewhere)
+# ============================================
 
 def explain_backend():
     st.subheader("Backend Explanation")
     st.write("This app uses Yahoo Finance for financial data, performs clustering on features like dividend yield, expected return, and beta for recommendations, and calculates the Altman Z-Score to assess company bankruptcy risk.")
 
 def main():
-   
     st.title("🏦 Financial Dashboard")
 
-    # 🌐 Default to "Hidden Competitor Neural Map"
+    # 🌐 Default = Hidden Competitor Neural Map
     page = st.sidebar.radio(
         "Navigation", 
         ["Hidden Competitor Neural Map", "Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Sector Competitor Explorer", "Explain Backend"],
-        index=0  # Default selected is "Hidden Competitor Neural Map"
+        index=0
     )
 
     if page == "Dividend Dashboard":
@@ -542,3 +549,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
