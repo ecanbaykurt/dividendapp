@@ -204,10 +204,6 @@ def get_sp500_tickers():
     df = pd.read_html(str(table))[0]
     return df['Symbol'].tolist()
 
-# ============================================
-# Sector Density Explorer Functions
-# ============================================
-
 def display_sector_density():
     st.title("🌌 Sector Density Explorer")
 
@@ -226,13 +222,13 @@ def display_sector_density():
     df['cluster'] = kmeans.fit_predict(embedding)
     df['ticker'] = ['TICK' + str(i) for i in range(len(df))]
 
+    # --- Dropdown: Sector Exploration ---
     sector_list = sorted(df['sector'].unique())
     selected_sectors = st.multiselect("Select up to 2 sectors to explore", sector_list, default=sector_list[:2])
 
     if selected_sectors:
         for sector in selected_sectors:
             sector_data = df[df['sector'] == sector]
-
             xyz = np.vstack([sector_data['x'], sector_data['y'], sector_data['z']]).T
             kde = KernelDensity(bandwidth=0.5, kernel='gaussian')
             kde.fit(xyz)
@@ -240,36 +236,35 @@ def display_sector_density():
             sector_data = sector_data.copy()
             sector_data['density'] = density
 
-fig = px.scatter_3d(
-    sector_data,
-    x='x', y='y', z='z',
-    color='density',
-    color_continuous_scale='YlOrRd',  # Slightly softer than 'Hot'
-    hover_data={
-        'ticker': True,
-        'cluster': True,
-        'density': ':.3f'
-    },
-    title=f"📊 {sector} Sector Density Map",
-    width=1000,
-    height=700
-)
+            fig = px.scatter_3d(
+                sector_data,
+                x='x', y='y', z='z',
+                color='density',
+                color_continuous_scale='YlOrRd',
+                hover_data={
+                    'ticker': True,
+                    'cluster': True,
+                    'density': ':.3f'
+                },
+                title=f"📊 {sector} Sector Density Map",
+                width=1000,
+                height=700
+            )
 
-fig.update_traces(marker=dict(size=4, opacity=0.8))
-fig.update_layout(
-    margin=dict(l=0, r=0, b=0, t=40),
-    scene=dict(
-        xaxis_title="UMAP X",
-        yaxis_title="UMAP Y",
-        zaxis_title="UMAP Z"
-    ),
-    coloraxis_colorbar=dict(
-        title="Density",
-        tickformat=".2f"
-    )
-)
-st.plotly_chart(fig, use_container_width=True)
-
+            fig.update_traces(marker=dict(size=4, opacity=0.8))
+            fig.update_layout(
+                margin=dict(l=0, r=0, b=0, t=40),
+                scene=dict(
+                    xaxis_title="UMAP X",
+                    yaxis_title="UMAP Y",
+                    zaxis_title="UMAP Z"
+                ),
+                coloraxis_colorbar=dict(
+                    title="Density",
+                    tickformat=".2f"
+                )
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
         if len(selected_sectors) == 2:
             sec1, sec2 = selected_sectors
@@ -282,6 +277,43 @@ st.plotly_chart(fig, use_container_width=True)
             st.subheader("💥 Hidden Competitors Detected")
             st.write(hidden_competitors_sec1[['ticker', 'cluster']])
             st.write(hidden_competitors_sec2[['ticker', 'cluster']])
+
+    # --- NEW: Stock Proximity Explorer ---
+    st.markdown("### 🔍 Stock Proximity Explorer")
+    query = st.text_input("Enter a Ticker (e.g., TICK123)")
+
+    if query in df['ticker'].values:
+        stock = df[df['ticker'] == query].iloc[0]
+        st.success(f"{query} is in **{stock['sector']}**, cluster #{stock['cluster']}.")
+
+        df['distance'] = np.linalg.norm(df[['x', 'y', 'z']].values - stock[['x', 'y', 'z']].values, axis=1)
+        nearby = df[df['ticker'] != query].sort_values('distance')
+
+        def classify_tier(dist):
+            if dist < 0.3:
+                return 'Tier 1 🔴'
+            elif dist < 0.6:
+                return 'Tier 2 🟠'
+            elif dist < 1.0:
+                return 'Tier 3 🟡'
+            else:
+                return 'Tier 4 ⚪'
+
+        nearby['Tier'] = nearby['distance'].apply(classify_tier)
+        st.markdown("#### 📊 Closest Competitors")
+        st.dataframe(nearby[['ticker', 'sector', 'cluster', 'distance', 'Tier']].head(10))
+
+        fig = px.scatter_3d(
+            df, x='x', y='y', z='z',
+            color='sector',
+            symbol=df['ticker'].apply(lambda t: 'star' if t == query else 'circle'),
+            hover_data=['ticker', 'cluster'],
+            title=f"🧭 Position of {query} Among Competitors"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    elif query:
+        st.warning("❌ Ticker not found. Try examples like TICK0, TICK42, TICK1987")
 
 # ============================================
 # Streamlit Main App
