@@ -240,17 +240,36 @@ def display_sector_density():
             sector_data = sector_data.copy()
             sector_data['density'] = density
 
-            fig = px.scatter_3d(
-                sector_data,
-                x='x', y='y', z='z',
-                color='density',
-                color_continuous_scale='Hot',
-                hover_data=['ticker', 'cluster'],
-                title=f"🔥 {sector} Sector Density",
-                width=1000,
-                height=800
-            )
-            st.plotly_chart(fig, use_container_width=True)
+fig = px.scatter_3d(
+    sector_data,
+    x='x', y='y', z='z',
+    color='density',
+    color_continuous_scale='YlOrRd',  # Slightly softer than 'Hot'
+    hover_data={
+        'ticker': True,
+        'cluster': True,
+        'density': ':.3f'
+    },
+    title=f"📊 {sector} Sector Density Map",
+    width=1000,
+    height=700
+)
+
+fig.update_traces(marker=dict(size=4, opacity=0.8))
+fig.update_layout(
+    margin=dict(l=0, r=0, b=0, t=40),
+    scene=dict(
+        xaxis_title="UMAP X",
+        yaxis_title="UMAP Y",
+        zaxis_title="UMAP Z"
+    ),
+    coloraxis_colorbar=dict(
+        title="Density",
+        tickformat=".2f"
+    )
+)
+st.plotly_chart(fig, use_container_width=True)
+
 
         if len(selected_sectors) == 2:
             sec1, sec2 = selected_sectors
