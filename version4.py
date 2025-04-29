@@ -274,14 +274,14 @@ import plotly.express as px
 import numpy as np
 
 def hidden_competitor_neural_map():
-    st.title("🧬 Hidden Competitor Neural Map")
+    st.title("🔥 Hidden Competitor Neural Map – Sector Density Heatmap")
 
     # --- Step 0: Load Data ---
     try:
         trimmed_df = pd.read_csv("your_cleaned_trimmed_df.csv")
         umap_embeddings_3d = np.load("your_umap_embeddings.npy")
     except Exception as e:
-        st.error("❌ Veri dosyaları yüklenemedi. Lütfen .csv ve .npy dosyalarının aynı klasörde olduğuna emin olun.")
+        st.error("❌ Veri dosyaları yüklenemedi. Lütfen CSV ve NPY dosyalarının bulunduğundan emin olun.")
         st.stop()
 
     # --- Step 1: Create Plot DataFrame ---
@@ -294,70 +294,56 @@ def hidden_competitor_neural_map():
         'cluster': trimmed_df['hidden_competitor_cluster']
     })
 
-    # --- Step 2: Sidebar Filters ---
-    unique_sectors = sorted(plot_df_3d['sector'].unique())
-    selected_sectors = st.sidebar.multiselect("Select sectors:", unique_sectors, default=unique_sectors)
-    filtered_df = plot_df_3d[plot_df_3d['sector'].isin(selected_sectors)]
+    # --- Step 2: Sidebar – Sector Selection ---
+    sectors = sorted(plot_df_3d['sector'].unique())
+    selected_sector = st.sidebar.selectbox("Select a sector to view density heatmap:", sectors)
 
-    selected_ticker = st.sidebar.selectbox("Highlight specific ticker (optional):", ["None"] + filtered_df['ticker'].tolist())
-    filtered_df['highlight'] = np.where(filtered_df['ticker'] == selected_ticker, 'Selected', 'Normal')
+    # --- Step 3: Filter by selected sector ---
+    sector_data = plot_df_3d[plot_df_3d['sector'] == selected_sector]
 
-    # --- Step 3: Colors by Cluster ---
-    cluster_ids = filtered_df['cluster'].unique()
-    colors = px.colors.qualitative.Plotly
-    color_map = {cid: colors[i % len(colors)] for i, cid in enumerate(cluster_ids)}
+    if len(sector_data) < 10:
+        st.warning("Not enough data points in this sector to compute density.")
+        return
 
-    # --- Step 4: 3D Scatter Plot ---
-    fig = go.Figure()
-    for cluster_id in cluster_ids:
-        cluster_data = filtered_df[filtered_df['cluster'] == cluster_id]
-        fig.add_trace(go.Scatter3d(
-            x=cluster_data['x'],
-            y=cluster_data['y'],
-            z=cluster_data['z'],
-            mode='markers',
-            marker=dict(
-                size=5,
-                color=color_map[cluster_id],
-                opacity=0.8,
-                line=dict(width=0.5, color='white')
-            ),
-            name=f'Cluster {cluster_id}',
-            text=cluster_data['ticker'] + " (" + cluster_data['sector'] + ")",
-            hoverinfo='text'
-        ))
+    # --- Step 4: Compute 3D KDE Density ---
+    xyz = np.vstack([sector_data['x'], sector_data['y'], sector_data['z']]).T
+    kde = KernelDensity(bandwidth=0.5, kernel='gaussian')
+    kde.fit(xyz)
+    density = np.exp(kde.score_samples(xyz))
+    sector_data = sector_data.copy()
+    sector_data['density'] = density
 
-    # --- Step 5: Sector Labels ---
-    sector_centers = filtered_df.groupby('sector')[['x', 'y', 'z']].mean()
-    for sector, row in sector_centers.iterrows():
-        fig.add_trace(go.Scatter3d(
-            x=[row['x']],
-            y=[row['y']],
-            z=[row['z']],
-            mode='text',
-            text=[sector],
-            textposition='top center',
-            textfont=dict(size=14, color='black'),
-            showlegend=False
-        ))
+    # --- Step 5: Plot 3D Scatter Heatmap (White Background) ---
+    fig = px.scatter_3d(
+        sector_data,
+        x='x', y='y', z='z',
+        color='density',
+        color_continuous_scale='Hot',
+        text='ticker',
+        hover_data=['ticker', 'cluster', 'density'],
+        title=f"🔥 3D Density Heatmap for {selected_sector} Sector",
+        width=1000,
+        height=800
+    )
 
-    # --- Layout ---
     fig.update_layout(
-        title='🌌 3D Hidden Competitor Neural Map (Clusters & Sectors)',
-        scene=dict(xaxis_title='UMAP-1', yaxis_title='UMAP-2', zaxis_title='UMAP-3'),
-        width=1100,
-        height=900,
-        showlegend=False
+        scene=dict(
+            xaxis=dict(backgroundcolor='white', gridcolor='lightgrey', zerolinecolor='grey'),
+            yaxis=dict(backgroundcolor='white', gridcolor='lightgrey', zerolinecolor='grey'),
+            zaxis=dict(backgroundcolor='white', gridcolor='lightgrey', zerolinecolor='grey'),
+            bgcolor='white'
+        ),
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        font=dict(color='black', size=12),
+        coloraxis_colorbar=dict(
+            title="Density",
+            tickvals=[density.min(), density.mean(), density.max()],
+            ticktext=["Low", "Medium", "High"]
+        )
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
-if __name__ == "__main__":
-    st.sidebar.title("Navigation")
-    selected_page = st.sidebar.radio("Choose a page:", ["3D Map", "Dashboard", "Other"])
-
-    if selected_page == "3D Map":
-        hidden_competitor_neural_map()
 
 # --- Backend Explanation ---
 def explain_backend():
