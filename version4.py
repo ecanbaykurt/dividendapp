@@ -286,67 +286,83 @@ def sector_competitor_explorer():
             st.error("Ticker not found in S&P 500 list!")
 
 # --- New Function: Hidden Competitor Neural Map ---
+# --- Custom Data Version ---
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 import numpy as np
-import plotly.express as px
-import umap
-from sklearn.datasets import make_blobs
 
-def hidden_competitor_neural_map():
+def hidden_competitor_neural_map(trimmed_df, umap_embeddings_3d):
     st.title("🧬 Hidden Competitor Neural Map")
 
-    # Create synthetic dataset
-    sectors = ['Technology', 'Finance', 'Healthcare', 'Energy', 'Industrial', 'Retail', 'Media', 'Transportation']
-    X, y = make_blobs(n_samples=2000, centers=len(sectors), n_features=6, random_state=42)
-    df = pd.DataFrame(X, columns=[f'Feature{i}' for i in range(6)])
-    df['Sector'] = [sectors[label] for label in y]
-    df['Ticker'] = ['TICK' + str(i) for i in range(len(df))]
+    # --- Step 1: Plot DataFrame ---
+    plot_df_3d = pd.DataFrame({
+        'x': umap_embeddings_3d[:, 0],
+        'y': umap_embeddings_3d[:, 1],
+        'z': umap_embeddings_3d[:, 2],
+        'ticker': trimmed_df['ticker'],
+        'sector': trimmed_df['sector'],
+        'cluster': trimmed_df['hidden_competitor_cluster']
+    })
 
-    # UMAP embedding (3D)
-    reducer = umap.UMAP(n_components=3, random_state=42)
-    embedding = reducer.fit_transform(df[[f'Feature{i}' for i in range(6)]])
-    df['x'] = embedding[:, 0]
-    df['y'] = embedding[:, 1]
-    df['z'] = embedding[:, 2]
+    # --- Step 2: Sidebar Filter ---
+    unique_sectors = plot_df_3d['sector'].unique().tolist()
+    selected_sectors = st.sidebar.multiselect("Select sectors:", unique_sectors, default=unique_sectors)
+    filtered_df = plot_df_3d[plot_df_3d['sector'].isin(selected_sectors)]
 
-    # Sidebar: Sector selection
-    selected_sectors = st.multiselect(
-        "Select sector(s) to display:", 
-        options=sectors, 
-        default=sectors
+    selected_ticker = st.sidebar.selectbox("Highlight specific ticker (optional):", ["None"] + filtered_df['ticker'].tolist())
+    filtered_df['highlight'] = np.where(filtered_df['ticker'] == selected_ticker, 'Selected', 'Normal')
+
+    # --- Step 3: Color by Cluster ---
+    cluster_ids = filtered_df['cluster'].unique()
+    colors = px.colors.qualitative.Plotly
+    color_map = {cid: colors[i % len(colors)] for i, cid in enumerate(cluster_ids)}
+
+    # --- Step 4: 3D Scatter Plot ---
+    fig = go.Figure()
+
+    for cluster_id in cluster_ids:
+        cluster_data = filtered_df[filtered_df['cluster'] == cluster_id]
+        fig.add_trace(go.Scatter3d(
+            x=cluster_data['x'],
+            y=cluster_data['y'],
+            z=cluster_data['z'],
+            mode='markers',
+            marker=dict(
+                size=5,
+                color=color_map[cluster_id],
+                opacity=0.8,
+                line=dict(width=0.5, color='white')
+            ),
+            name=f'Cluster {cluster_id}',
+            text=cluster_data['ticker'] + " (" + cluster_data['sector'] + ")",
+            hoverinfo='text'
+        ))
+
+    # --- Step 5: Sector Center Labels ---
+    sector_centers = filtered_df.groupby('sector')[['x', 'y', 'z']].mean()
+    for sector, row in sector_centers.iterrows():
+        fig.add_trace(go.Scatter3d(
+            x=[row['x']],
+            y=[row['y']],
+            z=[row['z']],
+            mode='text',
+            text=[sector],
+            textposition='top center',
+            textfont=dict(size=14, color='black'),
+            showlegend=False
+        ))
+
+    # --- Layout ---
+    fig.update_layout(
+        title='🌌 3D Hidden Competitor Neural Map (Clusters & Sectors)',
+        scene=dict(xaxis_title='UMAP-1', yaxis_title='UMAP-2', zaxis_title='UMAP-3'),
+        width=1100,
+        height=900,
+        showlegend=False
     )
-
-    # Filter DataFrame based on sector selection
-    filtered_df = df[df['Sector'].isin(selected_sectors)]
-
-    # Sidebar: Optional specific Ticker search
-    st.sidebar.subheader("Optional: Highlight Specific Ticker")
-    ticker_list = filtered_df['Ticker'].tolist()
-    selected_ticker = st.sidebar.selectbox(
-        "Choose a ticker to highlight (optional):", 
-        options=["None"] + ticker_list
-    )
-
-    # Add a 'Highlight' column
-    filtered_df['Highlight'] = np.where(filtered_df['Ticker'] == selected_ticker, 'Selected', 'Normal')
-
-    # 3D scatter plot
-    fig = px.scatter_3d(
-        filtered_df, 
-        x='x', y='y', z='z', 
-        color='Sector',
-        hover_data=['Ticker', 'Sector'],
-        symbol='Highlight',  # Different symbol for highlighted ticker
-        title="Hidden Competitor Neural Map (3D)",
-        template='plotly_dark', width=1000, height=800
-    )
-
-    fig.update_traces(marker=dict(size=4))  # Small points
-    fig.update_layout(margin=dict(l=0, r=0, b=0, t=50))
 
     st.plotly_chart(fig, use_container_width=True)
-
 
 # --- Backend Explanation ---
 def explain_backend():
