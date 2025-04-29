@@ -290,15 +290,25 @@ def sector_competitor_explorer():
 
 # --- New Function: Hidden Competitor Neural Map ---
 # --- Custom Data Version ---
+# --- Custom Data Version ---
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import numpy as np
 
-def hidden_competitor_neural_map(trimmed_df, umap_embeddings_3d):
+def hidden_competitor_neural_map():
     st.title("🧬 Hidden Competitor Neural Map")
 
-    # --- Step 1: Plot DataFrame ---
+    # --- Step 0: Load Data ---
+    try:
+        trimmed_df = pd.read_csv("your_cleaned_trimmed_df.csv")
+        umap_embeddings_3d = np.load("your_umap_embeddings.npy")
+    except Exception as e:
+        st.error("❌ Veri dosyaları yüklenemedi. Lütfen .csv ve .npy dosyalarının aynı klasörde olduğuna emin olun.")
+        st.stop()
+
+    # --- Step 1: Create Plot DataFrame ---
     plot_df_3d = pd.DataFrame({
         'x': umap_embeddings_3d[:, 0],
         'y': umap_embeddings_3d[:, 1],
@@ -308,22 +318,21 @@ def hidden_competitor_neural_map(trimmed_df, umap_embeddings_3d):
         'cluster': trimmed_df['hidden_competitor_cluster']
     })
 
-    # --- Step 2: Sidebar Filter ---
-    unique_sectors = plot_df_3d['sector'].unique().tolist()
+    # --- Step 2: Sidebar Filters ---
+    unique_sectors = sorted(plot_df_3d['sector'].unique())
     selected_sectors = st.sidebar.multiselect("Select sectors:", unique_sectors, default=unique_sectors)
     filtered_df = plot_df_3d[plot_df_3d['sector'].isin(selected_sectors)]
 
     selected_ticker = st.sidebar.selectbox("Highlight specific ticker (optional):", ["None"] + filtered_df['ticker'].tolist())
     filtered_df['highlight'] = np.where(filtered_df['ticker'] == selected_ticker, 'Selected', 'Normal')
 
-    # --- Step 3: Color by Cluster ---
+    # --- Step 3: Colors by Cluster ---
     cluster_ids = filtered_df['cluster'].unique()
     colors = px.colors.qualitative.Plotly
     color_map = {cid: colors[i % len(colors)] for i, cid in enumerate(cluster_ids)}
 
     # --- Step 4: 3D Scatter Plot ---
     fig = go.Figure()
-
     for cluster_id in cluster_ids:
         cluster_data = filtered_df[filtered_df['cluster'] == cluster_id]
         fig.add_trace(go.Scatter3d(
@@ -342,7 +351,7 @@ def hidden_competitor_neural_map(trimmed_df, umap_embeddings_3d):
             hoverinfo='text'
         ))
 
-    # --- Step 5: Sector Center Labels ---
+    # --- Step 5: Sector Labels ---
     sector_centers = filtered_df.groupby('sector')[['x', 'y', 'z']].mean()
     for sector, row in sector_centers.iterrows():
         fig.add_trace(go.Scatter3d(
@@ -366,6 +375,13 @@ def hidden_competitor_neural_map(trimmed_df, umap_embeddings_3d):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+if __name__ == "__main__":
+    st.sidebar.title("Navigation")
+    selected_page = st.sidebar.radio("Choose a page:", ["3D Map", "Dashboard", "Other"])
+
+    if selected_page == "3D Map":
+        hidden_competitor_neural_map()
 
 # --- Backend Explanation ---
 def explain_backend():
