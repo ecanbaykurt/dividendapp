@@ -242,30 +242,6 @@ def get_sp500_tickers():
     df = pd.read_html(str(table))[0]
     return df['Symbol'].tolist()
 
-
-# ============================================
-# FINAL UPDATED version3.py (with 2 new pages)
-# ============================================
-
-# --- Imports (same as yours + 2 more)
-import streamlit as st
-import yfinance as yf
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import requests
-from bs4 import BeautifulSoup
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-from sklearn.manifold import TSNE
-from scipy import stats
-import umap
-import plotly.express as px
-
-# --- Existing Functions (Dividend, Altman Z, Investing) ---
-# (Same as your file - skipping copying here to focus)
-
 # --- New Function: Sector Competitor Explorer ---
 def sector_competitor_explorer():
     st.title("📈 Sector Competitor Explorer (Custom Dataset)")
@@ -290,8 +266,7 @@ def sector_competitor_explorer():
         else:
             st.error("Ticker not found in your dataset!")
 # --- New Function: Hidden Competitor Neural Map ---
-# --- Custom Data Version ---
-# --- Custom Data Version ---
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
