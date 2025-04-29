@@ -16,6 +16,10 @@ import umap
 from sklearn.neighbors import KernelDensity
 import plotly.express as px
 from sklearn.datasets import make_blobs
+import plotly.express as px
+from sklearn.neighbors import KernelDensity
+import umap
+
 
 
 # ============================================
