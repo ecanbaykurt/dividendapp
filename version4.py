@@ -451,14 +451,26 @@ if __name__ == "__main__":
 # ============================================
 # Streamlit App
 # ============================================
+# ============================================
+# Streamlit App – Proper File Start
+# ============================================
 
 import streamlit as st
+st.set_page_config(page_title="Financial Dashboard", layout="wide")  # ✅ MUST BE HERE IMMEDIATELY
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
-# ✅ Set this before any other Streamlit command
-st.set_page_config(page_title="Financial Dashboard", layout="wide")
+import yfinance as yf
+import plotly.express as px
+import plotly.graph_objects as go
+from sklearn.neighbors import KernelDensity
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.datasets import make_blobs
+from bs4 import BeautifulSoup
+import requests
+from scipy import stats
 
 # ============================================
 # Your Functions (already defined elsewhere)
