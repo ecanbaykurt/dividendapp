@@ -286,6 +286,13 @@ def sector_competitor_explorer():
             st.error("Ticker not found in S&P 500 list!")
 
 # --- New Function: Hidden Competitor Neural Map ---
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import umap
+from sklearn.datasets import make_blobs
+
 def hidden_competitor_neural_map():
     st.title("🧬 Hidden Competitor Neural Map")
 
@@ -313,17 +320,21 @@ def hidden_competitor_neural_map():
     # Filter DataFrame based on selection
     filtered_df = df[df['Sector'].isin(selected_sectors)]
 
-    # 3D scatter plot
+    # 3D scatter plot with ticker text
     fig = px.scatter_3d(
-        filtered_df, x='x', y='y', z='z', color='Sector',
-        hover_data=['Ticker', 'Sector'],
+        filtered_df, 
+        x='x', y='y', z='z', 
+        color='Sector',
+        text='Ticker',          # <---- Ticker isimlerini göster
+        hover_data=['Sector'],
         title="Hidden Competitor Neural Map (3D)",
         template='plotly_dark', width=1000, height=800
     )
-    fig.update_traces(marker=dict(size=4))  # smaller dots for clarity
+    fig.update_traces(marker=dict(size=4), textposition='top center')  # <---- yazı pozisyonu üstte
     fig.update_layout(margin=dict(l=0, r=0, b=0, t=50))
 
     st.plotly_chart(fig, use_container_width=True)
+
 # --- Backend Explanation ---
 def explain_backend():
     st.subheader("Backend Explanation")
