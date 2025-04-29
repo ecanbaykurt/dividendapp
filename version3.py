@@ -12,14 +12,11 @@ from bs4 import BeautifulSoup
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from scipy import stats
-import umap
-from sklearn.neighbors import KernelDensity
-import plotly.express as px
-from sklearn.datasets import make_blobs
 
 # ============================================
 # Dividend Dashboard Functions
 # ============================================
+
 def display_dividend_dashboard(ticker: str):
     ticker_obj = yf.Ticker(ticker)
     info = ticker_obj.info
@@ -76,6 +73,7 @@ def display_dividend_dashboard(ticker: str):
 # ============================================
 # Altman Z-Score Functions
 # ============================================
+
 def compute_altman_z(ticker: str):
     ticker_obj = yf.Ticker(ticker)
     bs = ticker_obj.balance_sheet
@@ -130,91 +128,130 @@ def compute_altman_z(ticker: str):
     return z_score, classification
 
 # ============================================
-# Sector Density Explorer Functions
+# Investing Analysis Functions 
 # ============================================
-def display_sector_density():
-    st.title("\ud83c\udf0c Sector Density Explorer")
 
-    sectors = ['Technology', 'Finance', 'Healthcare', 'Energy', 'Industrial', 'Retail', 'Media', 'Transportation']
-    X, y = make_blobs(n_samples=2000, centers=len(sectors), n_features=5, random_state=42)
-    df = pd.DataFrame(X, columns=['feature1', 'feature2', 'feature3', 'feature4', 'feature5'])
-    df['sector'] = [sectors[label] for label in y]
+import numpy as np
+import pandas as pd
+import yfinance as yf
+import requests
+from bs4 import BeautifulSoup
+from scipy import stats
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
-    reducer = umap.UMAP(n_components=3, random_state=42)
-    embedding = reducer.fit_transform(df[['feature1', 'feature2', 'feature3', 'feature4', 'feature5']])
-    df['x'] = embedding[:, 0]
-    df['y'] = embedding[:, 1]
-    df['z'] = embedding[:, 2]
+def extract_features(tickers):
+    """
+    Extracts Dividend Yield, Price, Beta (Stability), and computes Expected Return
+    as Dividend Yield + Earnings Growth.
+    """
+    records = []
+    for ticker in tickers:
+        try:
+            info = yf.Ticker(ticker).info
+            dy = info.get('dividendYield', np.nan)  # Dividend Yield (decimal form, e.g., 0.02)
+            growth = info.get('earningsGrowth', np.nan)  # Earnings growth (e.g., 0.08)
+            price = info.get('regularMarketPrice', np.nan)  # Current Price
+            beta = info.get('beta', np.nan)  # Beta (stability measure)
 
-    kmeans = KMeans(n_clusters=20, random_state=42)
-    df['cluster'] = kmeans.fit_predict(embedding)
-    df['ticker'] = ['TICK' + str(i) for i in range(len(df))]
+            # Correct Expected Return definition
+            expected_return = (dy or 0) + (growth or 0)
+        except Exception:
+            dy, growth, price, beta, expected_return = np.nan, np.nan, np.nan, np.nan, np.nan
+        records.append([ticker, dy, price, beta, expected_return])
 
-    sector_list = sorted(df['sector'].unique())
-    selected_sectors = st.multiselect("Select up to 2 sectors to explore", sector_list, default=sector_list[:2])
+    return pd.DataFrame(records, columns=['Ticker', 'Dividend Yield', 'Price', 'Stability', 'Expected Return'])
 
-    if selected_sectors:
-        for sector in selected_sectors:
-            sector_data = df[df['sector'] == sector]
+def remove_outliers(df, columns):
+    """
+    Removes outliers from the specified columns using the Z-Score method.
+    """
+    z_scores = np.abs(stats.zscore(df[columns].dropna()))
+    df_clean = df[(z_scores < 3).all(axis=1)]  # Keep rows where all z-scores < 3
+    return df_clean
 
-            xyz = np.vstack([sector_data['x'], sector_data['y'], sector_data['z']]).T
-            kde = KernelDensity(bandwidth=0.5, kernel='gaussian')
-            kde.fit(xyz)
-            density = np.exp(kde.score_samples(xyz))
-            sector_data = sector_data.copy()
-            sector_data['density'] = density
+def perform_clustering(df):
+    """
+    Clusters stocks based on Dividend Yield, Expected Return, and Stability.
+    """
+    df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
 
-            fig = px.scatter_3d(
-                sector_data,
-                x='x', y='y', z='z',
-                color='density',
-                color_continuous_scale='YlOrRd',
-                hover_data={
-                    'ticker': True,
-                    'cluster': True,
-                    'density': ':.3f'
-                },
-                title=f"\ud83d\udcca {sector} Sector Density Map",
-                width=1000,
-                height=700
-            )
+    # Remove outliers
+    df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
 
-            fig.update_traces(marker=dict(size=4, opacity=0.8))
-            fig.update_layout(
-                margin=dict(l=0, r=0, b=0, t=40),
-                scene=dict(
-                    xaxis_title="UMAP X",
-                    yaxis_title="UMAP Y",
-                    zaxis_title="UMAP Z"
-                ),
-                coloraxis_colorbar=dict(
-                    title="Density",
-                    tickformat=".2f"
-                )
-            )
-            st.plotly_chart(fig, use_container_width=True)
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
 
-        if len(selected_sectors) == 2:
-            sec1, sec2 = selected_sectors
-            data_sec1 = df[df['sector'] == sec1]
-            data_sec2 = df[df['sector'] == sec2]
-            common_clusters = set(data_sec1['cluster']).intersection(set(data_sec2['cluster']))
-            hidden_competitors_sec1 = data_sec1[data_sec1['cluster'].isin(common_clusters)]
-            hidden_competitors_sec2 = data_sec2[data_sec2['cluster'].isin(common_clusters)]
+    model = KMeans(n_clusters=3, random_state=42)
+    df_clean['Cluster'] = model.fit_predict(features_scaled)
 
-            st.subheader("\ud83d\udca5 Hidden Competitors Detected")
-            st.write(hidden_competitors_sec1[['ticker', 'cluster']])
-            st.write(hidden_competitors_sec2[['ticker', 'cluster']])
+    return model, df_clean
+
+def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
+    """
+    Recommends a selection of stocks within budget and preference constraints.
+    """
+    df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
+
+    # Remove outliers
+    df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
+
+    # Sort by user preference
+    if preferences:
+        priority = preferences.get('priority')
+        if priority == 'Dividend Yield':
+            df_clean = df_clean.sort_values('Dividend Yield', ascending=False)
+        elif priority == 'Expected Return':
+            df_clean = df_clean.sort_values('Expected Return', ascending=False)
+        elif priority == 'Stability':
+            df_clean = df_clean.sort_values('Stability', ascending=False)
+
+    # Filter based on clustering if model is provided
+    if model:
+        features = df_clean[['Dividend Yield', 'Expected Return', 'Stability']]
+        scaler = StandardScaler()
+        features_scaled = scaler.fit_transform(features)
+        df_clean['Cluster'] = model.predict(features_scaled)
+        best_cluster = df_clean['Cluster'].mode()[0]
+        df_clean = df_clean[df_clean['Cluster'] == best_cluster]
+
+    # Filter by price constraints
+    df_clean = df_clean[(df_clean['Price'] >= min_price_per_stock) & 
+                        (df_clean['Price'] <= max_price_per_stock)]
+
+    # Select top 5
+    selected = df_clean.head(5)
+    allocation = budget / len(selected) if len(selected) > 0 else 0
+    selected['Allocation'] = allocation
+
+    return selected
+
+def get_sp500_tickers():
+    """
+    Scrapes the list of S&P 500 companies from Wikipedia.
+    """
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    table = soup.find('table', {'id': 'constituents'})
+    df = pd.read_html(str(table))[0]
+    return df['Symbol'].tolist()
+
 
 # ============================================
-# Streamlit Main App
+# Streamlit App
 # ============================================
+
+def explain_backend():
+    st.subheader("Backend Explanation")
+    st.write("This app uses Yahoo Finance for financial data, performs clustering on features like dividend yield, expected return, and beta for recommendations, and calculates the Altman Z-Score to assess company bankruptcy risk.")
+
 def main():
     st.title("Financial Dashboard")
 
     page = st.sidebar.radio(
         "Navigation", 
-        ["Dividend Dashboard", "Altman Z-Score", "Sector Density Explorer"]
+        ["Dividend Dashboard", "Altman Z-Score", "Investing Analysis", "Explain Backend"]
     )
 
     if page == "Dividend Dashboard":
@@ -232,8 +269,60 @@ def main():
             else:
                 st.error(f"Error: {classification}")
 
-    elif page == "Sector Density Explorer":
-        display_sector_density()
+    elif page == "Investing Analysis":
+        st.subheader("Input preferences below for personalized investment analysis:")
+
+        budget = st.number_input("Investment Budget ($)", min_value=0)
+        investment_priority = st.selectbox(
+            "Select Investment Priority",
+            ['Dividend Yield', 'Expected Return', 'Stability']
+        )
+        min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
+        max_price = st.number_input("Maximum Stock Price ($)", min_value=0, value=500)
+
+        if st.button("Get Stock Recommendations"):
+            tickers = get_sp500_tickers()
+            df_features = extract_features(tickers)
+            model, clustered = perform_clustering(df_features)
+
+            # Explain clustering
+            st.subheader("How Clustering Works")
+            st.write("""
+            Stocks are grouped into clusters based on similarities in their dividend yield, expected return (based on financial metrics), and stability (volatility measured by beta).
+            We recommend stocks from the 'best' cluster that matches your selected priority.
+            """)
+
+            # Visualize clusters in 3D
+            st.subheader("Cluster Visualization (3D)")
+            fig = plt.figure(figsize=(15, 15))
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(clustered['Dividend Yield'], clustered['Expected Return'], clustered['Stability'], 
+                       c=clustered['Cluster'], cmap='viridis')
+
+            ax.set_xlabel('Dividend Yield')
+            ax.set_ylabel('Expected Return')
+            ax.set_zlabel('Stability')
+            ax.set_title('Stock Clusters in 3D')
+
+            # Add cluster labels at the center
+            for cluster_num in clustered['Cluster'].unique():
+                cluster_data = clustered[clustered['Cluster'] == cluster_num]
+                center_x = cluster_data['Dividend Yield'].mean()
+                center_y = cluster_data['Expected Return'].mean()
+                center_z = cluster_data['Stability'].mean()
+                ax.text(center_x, center_y, center_z, f'Cluster {cluster_num}', fontsize=12, weight='bold', 
+                        ha='center', va='center', bbox=dict(facecolor='white', alpha=0.6, edgecolor='black'))
+
+            st.pyplot(fig)
+
+            preferences = {'priority': investment_priority}
+            recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
+
+            st.subheader("Top Stock Picks for Your Budget and Preferences")
+            st.write(recommended_stocks)
+
+    elif page == "Explain Backend":
+        explain_backend()
 
 if __name__ == "__main__":
     main()
