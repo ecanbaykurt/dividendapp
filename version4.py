@@ -448,13 +448,17 @@ if __name__ == "__main__":
 # ============================================
 # Streamlit App
 # ============================================
+import streamlit as st
+import pandas as pd
+import numpy as np
+st.set_page_config(page_title="Financial Dashboard", layout="wide")
 
 def explain_backend():
     st.subheader("Backend Explanation")
     st.write("This app uses Yahoo Finance for financial data, performs clustering on features like dividend yield, expected return, and beta for recommendations, and calculates the Altman Z-Score to assess company bankruptcy risk.")
 
 def main():
-    st.set_page_config(page_title="Financial Dashboard", layout="wide")
+   
     st.title("🏦 Financial Dashboard")
 
     # 🌐 Default to "Hidden Competitor Neural Map"
