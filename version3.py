@@ -208,6 +208,44 @@ def get_sp500_tickers():
 # Sector Density Explorer Functions
 # ============================================
 
+st.markdown("### 🔍 Stock Proximity Explorer")
+
+query = st.text_input("Enter a Ticker (e.g., TICK123)")
+if query in df['ticker'].values:
+    stock = df[df['ticker'] == query].iloc[0]
+    st.info(f"{query} is in **{stock['sector']}** sector, cluster #{stock['cluster']}.")
+
+    df['distance'] = np.linalg.norm(df[['x','y','z']].values - stock[['x','y','z']].values, axis=1)
+    nearby = df[df['ticker'] != query].sort_values('distance')
+
+    def classify_tier(dist):
+        if dist < 0.3:
+            return 'Tier 1 🔴'
+        elif dist < 0.6:
+            return 'Tier 2 🟠'
+        elif dist < 1.0:
+            return 'Tier 3 🟡'
+        else:
+            return 'Tier 4 ⚪'
+
+    nearby['Tier'] = nearby['distance'].apply(classify_tier)
+
+    st.markdown("#### 📊 Closest Competitors")
+    st.dataframe(nearby[['ticker', 'sector', 'cluster', 'distance', 'Tier']].head(10))
+
+    fig = px.scatter_3d(
+        df, x='x', y='y', z='z',
+        color='sector',
+        symbol=df['ticker'].apply(lambda t: 'star' if t == query else 'circle'),
+        hover_data=['ticker', 'cluster'],
+        title=f"🧭 Position of {query} Among Competitors"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+else:
+    st.warning("Ticker not found. Please try one from the list like 'TICK1', 'TICK78' etc.")
+
+
 def display_sector_density():
     st.title("🌌 Sector Density Explorer")
 
