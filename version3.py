@@ -15,6 +15,8 @@ from scipy import stats
 import umap
 from sklearn.neighbors import KernelDensity
 import plotly.express as px
+from sklearn.datasets import make_blobs
+
 
 # ============================================
 # Dividend Dashboard Functions
