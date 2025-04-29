@@ -268,26 +268,27 @@ import plotly.express as px
 
 # --- New Function: Sector Competitor Explorer ---
 def sector_competitor_explorer():
-    st.title("📈 Sector Competitor Explorer")
+    st.title("📈 Sector Competitor Explorer (Custom Dataset)")
 
-    # Load tickers and sectors
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    table = pd.read_html(url)[0]
-    sp500 = table[['Symbol', 'Security', 'GICS Sector']]
+    # Load your dataset
+    try:
+        trimmed_df = pd.read_csv("your_cleaned_trimmed_df.csv")
+    except Exception as e:
+        st.error("❌ Veri dosyası yüklenemedi. Lütfen 'your_cleaned_trimmed_df.csv' dosyasının projede olduğuna emin olun.")
+        return
 
-    ticker = st.text_input("Enter a Ticker to Find Sector Competitors", "AAPL")
+    # Ticker seçimi
+    ticker_input = st.text_input("Enter a Ticker to Find Sector Competitors", "AAPL").upper()
 
     if st.button("Find Competitors"):
-        ticker = ticker.upper()
-        if ticker in sp500['Symbol'].values:
-            sector = sp500.loc[sp500['Symbol'] == ticker, 'GICS Sector'].values[0]
-            competitors = sp500[sp500['GICS Sector'] == sector]
+        if ticker_input in trimmed_df['ticker'].values:
+            sector = trimmed_df.loc[trimmed_df['ticker'] == ticker_input, 'sector'].values[0]
+            competitors = trimmed_df[trimmed_df['sector'] == sector]
             st.success(f"Sector: {sector}")
-            st.write(f"Found {len(competitors)} competitors:")
-            st.dataframe(competitors.reset_index(drop=True))
+            st.write(f"Found {len(competitors)} companies in this sector:")
+            st.dataframe(competitors[['ticker', 'sector', 'profitability_ratio']].reset_index(drop=True))
         else:
-            st.error("Ticker not found in S&P 500 list!")
-
+            st.error("Ticker not found in your dataset!")
 # --- New Function: Hidden Competitor Neural Map ---
 # --- Custom Data Version ---
 # --- Custom Data Version ---
