@@ -296,22 +296,34 @@ def hidden_competitor_neural_map():
     df['Sector'] = [sectors[label] for label in y]
     df['Ticker'] = ['TICK' + str(i) for i in range(len(df))]
 
-    # UMAP embedding
+    # UMAP embedding (3D)
     reducer = umap.UMAP(n_components=3, random_state=42)
     embedding = reducer.fit_transform(df[[f'Feature{i}' for i in range(6)]])
-    df['x'] = embedding[:,0]
-    df['y'] = embedding[:,1]
-    df['z'] = embedding[:,2]
+    df['x'] = embedding[:, 0]
+    df['y'] = embedding[:, 1]
+    df['z'] = embedding[:, 2]
 
-    # Interactive scatter
-    fig = px.scatter(
-        df, x='x', y='y', color='Sector',
+    # Sector selection
+    selected_sectors = st.multiselect(
+        "Select sector(s) to display:", 
+        options=sectors, 
+        default=sectors
+    )
+
+    # Filter DataFrame based on selection
+    filtered_df = df[df['Sector'].isin(selected_sectors)]
+
+    # 3D scatter plot
+    fig = px.scatter_3d(
+        filtered_df, x='x', y='y', z='z', color='Sector',
         hover_data=['Ticker', 'Sector'],
-        title="Hidden Competitor Neural Map",
+        title="Hidden Competitor Neural Map (3D)",
         template='plotly_dark', width=1000, height=800
     )
-    st.plotly_chart(fig, use_container_width=True)
+    fig.update_traces(marker=dict(size=4))  # smaller dots for clarity
+    fig.update_layout(margin=dict(l=0, r=0, b=0, t=50))
 
+    st.plotly_chart(fig, use_container_width=True)
 # --- Backend Explanation ---
 def explain_backend():
     st.subheader("Backend Explanation")
