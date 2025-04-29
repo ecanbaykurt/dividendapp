@@ -13,6 +13,9 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from scipy import stats
 from sklearn.datasets import make_blobs
+import plotly.graph_objects as go
+import plotly.express as px
+
 
 
 # ============================================
