@@ -249,27 +249,80 @@ def get_sp500_tickers():
     return df['Symbol'].tolist()
 
 # ============================================
-# Sector Density Explorer Functions
+# Sector Density Explorer Functions (Improved)
 # ============================================
 
-def display_sector_density():
-    st.title("🌌 Sector Density Explorer")
+import plotly.express as px
+from sklearn.neighbors import KernelDensity
+import numpy as np
+import pandas as pd
+import umap
+from sklearn.datasets import make_blobs
+from sklearn.cluster import KMeans
+import streamlit as st
 
+
+def display_hidden_competitor_map(df):
+    fig = px.scatter(
+        df,
+        x='x',
+        y='y',
+        color='sector',
+        hover_data=['ticker', 'sector', 'cluster'],
+        template="plotly_dark",
+        color_discrete_sequence=px.colors.qualitative.Plotly,
+    )
+
+    fig.update_traces(
+        marker=dict(size=6, opacity=0.7, line=dict(width=0)),
+        selector=dict(mode='markers'),
+        hovertemplate='<b>%{customdata[0]}</b><br>Sector: %{customdata[1]}<br>Cluster: %{customdata[2]}<extra></extra>',
+    )
+
+    fig.update_layout(
+        title="🧠 Hidden Competitor Neural Map (Interactive)",
+        title_font_size=24,
+        title_x=0.5,
+        height=800,
+        width=1000,
+        hovermode='closest',
+        xaxis=dict(showgrid=False, zeroline=False, visible=False),
+        yaxis=dict(showgrid=False, zeroline=False, visible=False),
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=1.05,
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(size=12)
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def display_sector_density():
+    st.title("\ud83c\udf90 Sector Density Explorer")
+
+    # 1. Simulate data
     sectors = ['Technology', 'Finance', 'Healthcare', 'Energy', 'Industrial', 'Retail', 'Media', 'Transportation']
     X, y = make_blobs(n_samples=2000, centers=len(sectors), n_features=5, random_state=42)
     df = pd.DataFrame(X, columns=['feature1', 'feature2', 'feature3', 'feature4', 'feature5'])
     df['sector'] = [sectors[label] for label in y]
 
-    reducer = umap.UMAP(n_components=3, random_state=42)
+    # 2. Dimensionality reduction
+    reducer = umap.UMAP(n_components=2, random_state=42)
     embedding = reducer.fit_transform(df[['feature1', 'feature2', 'feature3', 'feature4', 'feature5']])
     df['x'] = embedding[:, 0]
     df['y'] = embedding[:, 1]
-    df['z'] = embedding[:, 2]
 
+    # 3. Clustering
     kmeans = KMeans(n_clusters=20, random_state=42)
     df['cluster'] = kmeans.fit_predict(embedding)
     df['ticker'] = ['TICK' + str(i) for i in range(len(df))]
 
+    # 4. Sector selection
     sector_list = sorted(df['sector'].unique())
     selected_sectors = st.multiselect("Select up to 2 sectors to explore", sector_list, default=sector_list[:2])
 
@@ -277,22 +330,25 @@ def display_sector_density():
         for sector in selected_sectors:
             sector_data = df[df['sector'] == sector]
 
-            xyz = np.vstack([sector_data['x'], sector_data['y'], sector_data['z']]).T
+            # Density Calculation
+            xyz = np.vstack([sector_data['x'], sector_data['y']]).T
             kde = KernelDensity(bandwidth=0.5, kernel='gaussian')
             kde.fit(xyz)
             density = np.exp(kde.score_samples(xyz))
             sector_data = sector_data.copy()
             sector_data['density'] = density
 
-            fig = px.scatter_3d(
+            fig = px.scatter(
                 sector_data,
-                x='x', y='y', z='z',
+                x='x',
+                y='y',
                 color='density',
                 color_continuous_scale='Hot',
                 hover_data=['ticker', 'cluster'],
-                title=f"🔥 {sector} Sector Density",
+                title=f"\ud83d\udd25 {sector} Sector Density",
                 width=1000,
-                height=800
+                height=800,
+                template="plotly_dark"
             )
             st.plotly_chart(fig, use_container_width=True)
 
@@ -301,19 +357,25 @@ def display_sector_density():
             data_sec1 = df[df['sector'] == sec1]
             data_sec2 = df[df['sector'] == sec2]
             common_clusters = set(data_sec1['cluster']).intersection(set(data_sec2['cluster']))
+
             hidden_competitors_sec1 = data_sec1[data_sec1['cluster'].isin(common_clusters)]
             hidden_competitors_sec2 = data_sec2[data_sec2['cluster'].isin(common_clusters)]
 
-            st.subheader("💥 Hidden Competitors Detected")
+            st.subheader("\ud83d\udca5 Hidden Competitors Detected")
             st.write(hidden_competitors_sec1[['ticker', 'cluster']])
             st.write(hidden_competitors_sec2[['ticker', 'cluster']])
 
+    # 5. Always show main map below
+    st.markdown("---")
+    st.subheader("\ud83e\uddec Full Hidden Competitor Neural Map")
+    display_hidden_competitor_map(df)
+
 # ============================================
-# Streamlit Main App
+# Streamlit Main App (unchanged)
 # ============================================
 
 def main():
-    st.title("Financial Dashboard")
+    st.title("\ud83c\udfe6 Financial Dashboard")
 
     page = st.sidebar.radio(
         "Navigation", 
@@ -336,9 +398,8 @@ def main():
                 st.error(f"Error: {classification}")
 
     elif page == "Investing Analysis":
-        # your previous Investing Analysis page code
         st.subheader("Input preferences below for personalized investment analysis:")
-        # [the rest of your investing code here]
+        # [continue investing analysis page here]
 
     elif page == "Sector Density Explorer":
         display_sector_density()
@@ -348,6 +409,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
