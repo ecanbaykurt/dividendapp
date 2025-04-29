@@ -19,6 +19,50 @@ from sklearn.datasets import make_blobs
 
 
 # ============================================
+# Custom Professional Styling (Dark Gold Theme)
+# ============================================
+st.markdown(
+    """
+    <style>
+    body {
+        background-color: #111111;
+        color: #E0E0E0;
+    }
+    .stApp {
+        background-color: #111111;
+    }
+    h1, h2, h3, h4 {
+        color: #FFD700;
+        font-family: 'Open Sans', sans-serif;
+    }
+    .css-1d391kg {   /* Sidebar */
+        background-color: #111111;
+    }
+    .css-1v0mbdj p { /* Normal text */
+        font-family: 'Open Sans', sans-serif;
+        color: #E0E0E0;
+    }
+    button {
+        border: 2px solid #007BFF;
+        border-radius: 10px;
+        color: white;
+        background-color: #111111;
+    }
+    button:hover {
+        background-color: #007BFF;
+        color: #FFFFFF;
+    }
+    .stTextInput>div>div>input {
+        background-color: #1A1A1A;
+        color: #FFD700;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================
 # Dividend Dashboard Functions
 # ============================================
 
