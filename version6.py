@@ -408,7 +408,9 @@ def main():
             st.subheader("Top Recommended Stocks")
             st.write(recommended_stocks)
 
-            # Temettü Yatırım Hedefi Hesaplama
+    elif page == "Sector Competitor Explorer":
+        sector_competitor_explorer()
+                    # Temettü Yatırım Hedefi Hesaplama
             total_dividend_yield = recommended_stocks['Dividend Yield'].mean()
             expected_annual_income = budget * total_dividend_yield if not np.isnan(total_dividend_yield) else 0
 
@@ -429,8 +431,6 @@ def main():
             else:
                 st.success("Your portfolio aligns well with a stable dividend income strategy.")
 
-    elif page == "Sector Competitor Explorer":
-        sector_competitor_explorer()
 
     elif page == "Hidden Competitor Neural Map":
         hidden_competitor_neural_map()
