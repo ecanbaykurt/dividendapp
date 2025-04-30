@@ -149,23 +149,23 @@ def extract_features_from_local_csv():
         df = pd.read_csv("your_cleaned_trimmed_df.csv")
 
         # Normalize column names
-        df.columns = [col.strip().replace(" ", "_") for col in df.columns]
+        df.columns = [col.strip().replace(" ", "_").lower() for col in df.columns]
 
-        # Rename for uniformity (based on your image)
+        # Rename based on your screenshot
         df = df.rename(columns={
-            'Total_Asse': 'Total_Assets',
-            'Total_Reve': 'Total_Revenue',
-            'profitabilit': 'Profitability',
-            'sector': 'Sector'
+            'total_asse': 'total_assets',
+            'total_reve': 'total_revenue',
+            'profitabilit': 'profitability',
+            'sector': 'sector'
         })
 
         # Drop missing values
-        df_clean = df[['ticker', 'Total_Assets', 'Total_Revenue', 'Profitability', 'Sector']].dropna()
+        df_clean = df[['ticker', 'total_assets', 'total_revenue', 'profitability', 'sector']].dropna()
 
-        # Create synthetic features
-        df_clean['Dividend Yield'] = df_clean['Profitability'] / 10
-        df_clean['Expected Return'] = df_clean['Profitability'] / 5
-        df_clean['Price'] = (df_clean['Total_Revenue'] / df_clean['Total_Assets']) * 100
+        # Create derived financial features
+        df_clean['Dividend Yield'] = df_clean['profitability'] / 10
+        df_clean['Expected Return'] = df_clean['profitability'] / 5
+        df_clean['Price'] = (df_clean['total_revenue'] / df_clean['total_assets']) * 100
         df_clean['Stability'] = 1 / (1 + df_clean['Price'].std())
 
         return df_clean
@@ -173,6 +173,7 @@ def extract_features_from_local_csv():
     except Exception as e:
         st.error(f"❌ Failed to load your_cleaned_trimmed_df.csv: {e}")
         return pd.DataFrame()
+
 # ============================================
 # Remove Outliers with Z-Score
 # ============================================
@@ -181,7 +182,7 @@ def remove_outliers(df, columns):
         z_scores = np.abs(stats.zscore(df[columns].dropna()))
         return df[(z_scores < 3).all(axis=1)]
     except Exception:
-        return df  # fallback if z-score fails
+        return df
 
 # ============================================
 # Clustering with Guardrails
@@ -201,6 +202,38 @@ def perform_clustering(df):
 
     return model, df_clean
 
+# ============================================
+# Stock Recommender
+# ============================================
+def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
+    df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
+    df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
+
+    # Apply priority sorting
+    if preferences:
+        priority = preferences.get('priority')
+        if priority in df_clean.columns:
+            df_clean = df_clean.sort_values(priority, ascending=False)
+
+    # Apply clustering filter
+    if model and not df_clean.empty:
+        features = df_clean[['Dividend Yield', 'Expected Return', 'Stability']]
+        scaler = StandardScaler()
+        features_scaled = scaler.fit_transform(features)
+        df_clean['Cluster'] = model.predict(features_scaled)
+        best_cluster = df_clean['Cluster'].mode()[0]
+        df_clean = df_clean[df_clean['Cluster'] == best_cluster]
+
+    # Filter by stock price range
+    df_clean = df_clean[(df_clean['Price'] >= min_price_per_stock) &
+                        (df_clean['Price'] <= max_price_per_stock)]
+
+    if df_clean.empty:
+        return pd.DataFrame()
+
+    selected = df_clean.head(5)
+    selected['Allocation'] = budget / len(selected)
+    return selected
 # ============================================
 # Stock Recommender
 # ============================================
