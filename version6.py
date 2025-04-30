@@ -408,29 +408,29 @@ def main():
             st.subheader("Top Recommended Stocks")
             st.write(recommended_stocks)
 
-    elif page == "Sector Competitor Explorer":
-        sector_competitor_explorer()
-                    # Temettü Yatırım Hedefi Hesaplama
+            # 🎯 Dividend Income Goal Calculation
             total_dividend_yield = recommended_stocks['Dividend Yield'].mean()
             expected_annual_income = budget * total_dividend_yield if not np.isnan(total_dividend_yield) else 0
 
             st.subheader("🎯 Dividend Income Goal")
             st.metric(label="Expected Annual Dividend Income", value=f"${expected_annual_income:.2f}")
 
-            # Grafik
+            # 📊 Chart
             fig, ax = plt.subplots()
             ax.bar(["Investment", "Expected Dividend Income"], [budget, expected_annual_income])
             ax.set_ylabel('USD ($)')
             ax.set_title('Investment vs Expected Annual Dividend')
             st.pyplot(fig)
 
-            # Strateji Önerisi
+            # 📈 Strategy Suggestion
             st.subheader("📈 Strategy Recommendation")
             if expected_annual_income < budget * 0.04:
                 st.warning("Consider selecting stocks with higher dividend yields to better reach your dividend income goals.")
             else:
                 st.success("Your portfolio aligns well with a stable dividend income strategy.")
 
+    elif page == "Sector Competitor Explorer":
+        sector_competitor_explorer()
 
     elif page == "Hidden Competitor Neural Map":
         hidden_competitor_neural_map()
