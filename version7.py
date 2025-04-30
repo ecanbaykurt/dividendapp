@@ -417,45 +417,46 @@ def main():
             else:
                 st.error(f"Error: {classification}")
 
-    if page == "Investing Analysis":
-    st.subheader("Personalized Investment Recommendation")
-    budget = st.number_input("Enter Investment Budget ($)", min_value=1000)
-    investment_priority = st.selectbox("Select Investment Priority", ['Dividend Yield', 'Expected Return', 'Stability'])
-    min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
-    max_price = st.number_input("Maximum Stock Price ($)", min_value=0, value=500)
+    elif page == "Investing Analysis":
+        st.subheader("Personalized Investment Recommendation")
+        budget = st.number_input("Enter Investment Budget ($)", min_value=1000)
+        investment_priority = st.selectbox("Select Investment Priority", ['Dividend Yield', 'Expected Return', 'Stability'])
+        min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
+        max_price = st.number_input("Maximum Stock Price ($)", min_value=0, value=500)
 
-    if st.button("Get Stock Recommendations"):
-        with st.spinner("Fetching and analyzing data..."):
-            tickers = get_sp500_tickers()
-            df_features = extract_features(tickers)
-            model, clustered = perform_clustering(df_features)
+        if st.button("Get Stock Recommendations"):
+            with st.spinner("Fetching and analyzing data..."):
+                tickers = get_sp500_tickers()
+                df_features = extract_features(tickers)
+                model, clustered = perform_clustering(df_features)
 
-            preferences = {'priority': investment_priority}
-            recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
+                preferences = {'priority': investment_priority}
+                recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
 
-        st.subheader("Top Recommended Stocks")
-        st.write(recommended_stocks)
+            st.subheader("Top Recommended Stocks")
+            st.write(recommended_stocks)
 
-        # Dividend income estimation
-        total_dividend_yield = recommended_stocks['Dividend Yield'].mean()
-        expected_annual_income = budget * total_dividend_yield if not np.isnan(total_dividend_yield) else 0
+            # Dividend income estimation
+            total_dividend_yield = recommended_stocks['Dividend Yield'].mean()
+            expected_annual_income = budget * total_dividend_yield if not np.isnan(total_dividend_yield) else 0
 
-        st.subheader("🎯 Dividend Income Goal")
-        st.metric(label="Expected Annual Dividend Income", value=f"${expected_annual_income:.2f}")
+            st.subheader("🎯 Dividend Income Goal")
+            st.metric(label="Expected Annual Dividend Income", value=f"${expected_annual_income:.2f}")
 
-        # Plot
-        fig, ax = plt.subplots()
-        ax.bar(["Investment", "Expected Dividend Income"], [budget, expected_annual_income])
-        ax.set_ylabel('USD ($)')
-        ax.set_title('Investment vs Expected Annual Dividend')
-        st.pyplot(fig)
+            # Plot
+            fig, ax = plt.subplots()
+            ax.bar(["Investment", "Expected Dividend Income"], [budget, expected_annual_income])
+            ax.set_ylabel('USD ($)')
+            ax.set_title('Investment vs Expected Annual Dividend')
+            st.pyplot(fig)
 
-        # Strategy
-        st.subheader("📈 Strategy Recommendation")
-        if expected_annual_income < budget * 0.04:
-            st.warning("Consider selecting stocks with higher dividend yields.")
-        else:
-            st.success("Your portfolio aligns well with a stable dividend income strategy.")
+            # Strategy
+            st.subheader("📈 Strategy Recommendation")
+            if expected_annual_income < budget * 0.04:
+                st.warning("Consider selecting stocks with higher dividend yields.")
+            else:
+                st.success("Your portfolio aligns well with a stable dividend income strategy.")
+
     elif page == "Sector Competitor Explorer":
         sector_competitor_explorer()
 
@@ -465,5 +466,6 @@ def main():
     elif page == "Explain Backend":
         explain_backend()
 
+# Only run main() when executed directly
 if __name__ == "__main__":
     main()
