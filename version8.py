@@ -135,26 +135,39 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from scipy import stats
+import requests
+from bs4 import BeautifulSoup
 
 # ============================================
-# Load Dataset from Local CSV
+# Load Dataset from Wikipedia (Top 50 S&P 500)
 # ============================================
 @st.cache_data(show_spinner=False)
 def load_dataset():
-    df = pd.read_csv("your_cleaned_trimmed_df.csv")
-    df.columns = [col.strip().replace(" ", "_").lower() for col in df.columns]
-    df = df.rename(columns={
-        'total_asse': 'total_assets',
-        'total_reve': 'total_revenue',
-        'profitabilit': 'profitability',
-        'sector': 'sector'
-    })
-    df = df[['ticker', 'total_assets', 'total_revenue', 'profitability', 'sector']].dropna()
-    df['Dividend Yield'] = df['profitability'] / 10
-    df['Expected Return'] = df['profitability'] / 5
-    df['Price'] = (df['total_revenue'] / df['total_assets']) * 100
-    df['Stability'] = 1 / (1 + df['Price'].std())
-    return df
+    try:
+        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        table = soup.find('table', {'id': 'constituents'})
+        df = pd.read_html(str(table))[0]
+        df = df[['Symbol', 'Security', 'GICS Sector']].rename(columns={
+            'Symbol': 'ticker',
+            'Security': 'company',
+            'GICS Sector': 'sector'
+        })
+        df = df.head(50)
+
+        np.random.seed(42)
+        df['total_assets'] = np.random.uniform(5e8, 5e10, size=len(df))
+        df['total_revenue'] = df['total_assets'] * np.random.uniform(0.1, 1.0, size=len(df))
+        df['profitability'] = np.random.uniform(0.2, 0.9, size=len(df))
+        df['Dividend Yield'] = df['profitability'] / 10
+        df['Expected Return'] = df['profitability'] / 5
+        df['Price'] = (df['total_revenue'] / df['total_assets']) * 100
+        df['Stability'] = 1 / (1 + df['Price'].std())
+        return df
+    except Exception as e:
+        st.error(f"❌ Failed to load Wikipedia S&P 500 data: {e}")
+        return pd.DataFrame()
 
 # ============================================
 # Remove Outliers
@@ -192,66 +205,6 @@ def recommend_stocks(df, budget, model=None, preferences=None, min_price=20, max
         top_cluster = df_clean['Cluster'].mode()[0]
         df_clean = df_clean[df_clean['Cluster'] == top_cluster]
     df_clean = df_clean[(df_clean['Price'] >= min_price) & (df_clean['Price'] <= max_price)]
-    selected = df_clean.head(5)
-    selected['Allocation'] = budget / len(selected)
-    return selected
-
-# ============================================
-# Stock Recommender
-# ============================================
-def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
-    df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
-    df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
-
-    if preferences:
-        priority = preferences.get('priority')
-        if priority in df_clean.columns:
-            df_clean = df_clean.sort_values(priority, ascending=False)
-
-    if model and not df_clean.empty:
-        features = df_clean[['Dividend Yield', 'Expected Return', 'Stability']]
-        scaler = StandardScaler()
-        features_scaled = scaler.fit_transform(features)
-        df_clean['Cluster'] = model.predict(features_scaled)
-        best_cluster = df_clean['Cluster'].mode()[0]
-        df_clean = df_clean[df_clean['Cluster'] == best_cluster]
-
-    df_clean = df_clean[(df_clean['Price'] >= min_price_per_stock) & 
-                        (df_clean['Price'] <= max_price_per_stock)]
-
-    if df_clean.empty:
-        return pd.DataFrame()
-
-    selected = df_clean.head(5)
-    selected['Allocation'] = budget / len(selected)
-    return selected
-
-# ============================================
-# Stock Recommender
-# ============================================
-def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
-    df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
-    df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
-
-    if preferences:
-        priority = preferences.get('priority')
-        if priority in df_clean.columns:
-            df_clean = df_clean.sort_values(priority, ascending=False)
-
-    if model and not df_clean.empty:
-        features = df_clean[['Dividend Yield', 'Expected Return', 'Stability']]
-        scaler = StandardScaler()
-        features_scaled = scaler.fit_transform(features)
-        df_clean['Cluster'] = model.predict(features_scaled)
-        best_cluster = df_clean['Cluster'].mode()[0]
-        df_clean = df_clean[df_clean['Cluster'] == best_cluster]
-
-    df_clean = df_clean[(df_clean['Price'] >= min_price_per_stock) &
-                        (df_clean['Price'] <= max_price_per_stock)]
-
-    if df_clean.empty:
-        return pd.DataFrame()
-
     selected = df_clean.head(5)
     selected['Allocation'] = budget / len(selected)
     return selected
