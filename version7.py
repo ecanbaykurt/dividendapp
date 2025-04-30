@@ -142,59 +142,31 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 import streamlit as st
 
-# FMP API Key
-API_KEY = "6EGCoGuctJXFyz9Ip641QW9XkDmSF2kc"
+import yfinance as yf
 
-# ============================================
-# Get S&P 500 Tickers
-# ============================================
-def get_sp500_tickers():
-    """
-    Scrapes the list of S&P 500 companies from Wikipedia.
-    """
-    try:
-        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        table = soup.find('table', {'id': 'constituents'})
-        df = pd.read_html(str(table))[0]
-        return df['Symbol'].tolist()
-    except Exception as e:
-        st.error(f"❌ Failed to fetch S&P 500 tickers: {e}")
-        return []
-
-# ============================================
-# Extract Features from FMP API
-# ============================================
 @st.cache_data(show_spinner=False)
 def extract_features(tickers):
     records = []
     for ticker in tickers:
         try:
-            url = f"https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={API_KEY}"
-            response = requests.get(url)
-            data = response.json()
+            stock = yf.Ticker(ticker)
 
-            if data:
-                info = data[0]
-                price = float(info.get('price', np.nan))
-                dividend = float(info.get('lastDiv', 0))
-                beta = float(info.get('beta', np.nan))
+            # fast_info is faster and less likely to rate limit
+            price = stock.fast_info.get("last_price", np.nan)
+            dividend = stock.fast_info.get("dividend_rate", 0.0)
+            beta = stock.info.get("beta", np.nan)  # slower but needed
 
-                dividend_yield = dividend / price if price else 0
-                expected_return = dividend_yield + 0.08  # Assumed 8% return
+            dividend_yield = dividend / price if price and dividend else 0
+            expected_return = dividend_yield + 0.08  # Assume 8% return baseline
 
-                records.append([ticker, dividend_yield, price, beta, expected_return])
-            else:
-                records.append([ticker, np.nan, np.nan, np.nan, np.nan])
+            records.append([ticker, dividend_yield, price, beta, expected_return])
         except Exception as e:
             st.warning(f"⚠️ Failed to fetch data for {ticker}: {e}")
             records.append([ticker, np.nan, np.nan, np.nan, np.nan])
 
-    df = pd.DataFrame(records, columns=[
+    return pd.DataFrame(records, columns=[
         'Ticker', 'Dividend Yield', 'Price', 'Stability', 'Expected Return'
     ])
-    return df
 
 # ============================================
 # Remove Outliers with Z-Score
