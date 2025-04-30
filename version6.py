@@ -132,6 +132,7 @@ def compute_altman_z(ticker: str):
 # ============================================
 # Investing Analysis Functions
 # ============================================
+@st.cache_data(show_spinner=False)
 def extract_features(tickers):
     records = []
     for ticker in tickers:
@@ -142,11 +143,11 @@ def extract_features(tickers):
             price = info.get('regularMarketPrice', np.nan)
             beta = info.get('beta', np.nan)
             expected_return = (dy or 0) + (growth or 0)
-        except Exception:
+        except Exception as e:
+            st.warning(f"⚠️ Failed to fetch data for {ticker}: {e}")
             dy, growth, price, beta, expected_return = np.nan, np.nan, np.nan, np.nan, np.nan
         records.append([ticker, dy, price, beta, expected_return])
     return pd.DataFrame(records, columns=['Ticker', 'Dividend Yield', 'Price', 'Stability', 'Expected Return'])
-
 def remove_outliers(df, columns):
     z_scores = np.abs(stats.zscore(df[columns].dropna()))
     return df[(z_scores < 3).all(axis=1)]
