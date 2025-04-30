@@ -132,7 +132,6 @@ def compute_altman_z(ticker: str):
 # ============================================
 # Investing Analysis Functions 
 # ============================================
-
 import numpy as np
 import pandas as pd
 import requests
@@ -141,23 +140,40 @@ from scipy import stats
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 import streamlit as st
-
 import yfinance as yf
 
+# ============================================
+# Load Top 50 S&P 500 Tickers
+# ============================================
+def get_sp500_tickers():
+    """Scrapes the first 50 S&P 500 tickers from Wikipedia."""
+    try:
+        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        table = soup.find('table', {'id': 'constituents'})
+        df = pd.read_html(str(table))[0]
+        return df['Symbol'].tolist()[:50]
+    except Exception as e:
+        st.error(f"❌ Could not fetch S&P 500 tickers: {e}")
+        return []
+
+# ============================================
+# Feature Extraction using yfinance
+# ============================================
 @st.cache_data(show_spinner=False)
 def extract_features(tickers):
+    """Pulls dividend, price, beta, and expected return using yfinance."""
     records = []
     for ticker in tickers:
         try:
             stock = yf.Ticker(ticker)
-
-            # fast_info is faster and less likely to rate limit
             price = stock.fast_info.get("last_price", np.nan)
             dividend = stock.fast_info.get("dividend_rate", 0.0)
-            beta = stock.info.get("beta", np.nan)  # slower but needed
+            beta = stock.info.get("beta", np.nan)
 
-            dividend_yield = dividend / price if price and dividend else 0
-            expected_return = dividend_yield + 0.08  # Assume 8% return baseline
+            dividend_yield = dividend / price if price else 0
+            expected_return = dividend_yield + 0.08  # assumed long-term growth
 
             records.append([ticker, dividend_yield, price, beta, expected_return])
         except Exception as e:
@@ -169,24 +185,26 @@ def extract_features(tickers):
     ])
 
 # ============================================
-# Remove Outliers with Z-Score
+# Outlier Removal (Z-score based)
 # ============================================
 def remove_outliers(df, columns):
+    """Removes rows with extreme values using z-score filtering."""
     try:
         z_scores = np.abs(stats.zscore(df[columns].dropna()))
         return df[(z_scores < 3).all(axis=1)]
     except Exception:
-        return df  # fallback if z-score fails
+        return df
 
 # ============================================
-# Clustering with Guardrails
+# Clustering Stocks
 # ============================================
 def perform_clustering(df):
+    """Clusters stocks into 3 groups based on selected features."""
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
     df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
 
     if df_clean.empty:
-        raise ValueError("No valid data left after removing NaNs and outliers.")
+        raise ValueError("No valid data for clustering after cleaning.")
 
     scaler = StandardScaler()
     features_scaled = scaler.fit_transform(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
@@ -197,20 +215,19 @@ def perform_clustering(df):
     return model, df_clean
 
 # ============================================
-# Stock Recommender
+# Recommend Stocks Based on User Preferences
 # ============================================
 def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
+    """
+    Filters and recommends stocks based on clustering and user preference.
+    """
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
     df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
 
     if preferences:
-        priority = preferences.get('priority')
-        if priority == 'Dividend Yield':
-            df_clean = df_clean.sort_values('Dividend Yield', ascending=False)
-        elif priority == 'Expected Return':
-            df_clean = df_clean.sort_values('Expected Return', ascending=False)
-        elif priority == 'Stability':
-            df_clean = df_clean.sort_values('Stability', ascending=False)
+        sort_by = preferences.get('priority')
+        if sort_by in df_clean.columns:
+            df_clean = df_clean.sort_values(sort_by, ascending=False)
 
     if model and not df_clean.empty:
         features = df_clean[['Dividend Yield', 'Expected Return', 'Stability']]
@@ -227,11 +244,10 @@ def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_sto
         return pd.DataFrame()
 
     selected = df_clean.head(5)
-    allocation = budget / len(selected)
-    selected['Allocation'] = allocation
+    selected['Allocation'] = budget / len(selected)
 
     return selected
-    
+
 #Sector Competitor Explorer
 
 def sector_competitor_explorer():
