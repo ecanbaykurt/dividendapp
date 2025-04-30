@@ -135,16 +135,37 @@ def compute_altman_z(ticker: str):
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 import requests
 from bs4 import BeautifulSoup
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-import requests
+import streamlit as st
 
+# FMP API Key
 API_KEY = "6EGCoGuctJXFyz9Ip641QW9XkDmSF2kc"
 
+# ============================================
+# Get S&P 500 Tickers
+# ============================================
+def get_sp500_tickers():
+    """
+    Scrapes the list of S&P 500 companies from Wikipedia.
+    """
+    try:
+        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        table = soup.find('table', {'id': 'constituents'})
+        df = pd.read_html(str(table))[0]
+        return df['Symbol'].tolist()
+    except Exception as e:
+        st.error(f"❌ Failed to fetch S&P 500 tickers: {e}")
+        return []
+
+# ============================================
+# Extract Features from FMP API
+# ============================================
 @st.cache_data(show_spinner=False)
 def extract_features(tickers):
     records = []
@@ -160,35 +181,40 @@ def extract_features(tickers):
                 dividend = float(info.get('lastDiv', 0))
                 beta = float(info.get('beta', np.nan))
 
-                # Approximate dividend yield
                 dividend_yield = dividend / price if price else 0
-                expected_return = dividend_yield + 0.08  # Assume 8% growth for now
+                expected_return = dividend_yield + 0.08  # Assumed 8% return
 
                 records.append([ticker, dividend_yield, price, beta, expected_return])
             else:
-                st.warning(f"⚠️ No data returned for {ticker}")
                 records.append([ticker, np.nan, np.nan, np.nan, np.nan])
         except Exception as e:
             st.warning(f"⚠️ Failed to fetch data for {ticker}: {e}")
             records.append([ticker, np.nan, np.nan, np.nan, np.nan])
 
-    return pd.DataFrame(records, columns=['Ticker', 'Dividend Yield', 'Price', 'Stability', 'Expected Return'])
+    df = pd.DataFrame(records, columns=[
+        'Ticker', 'Dividend Yield', 'Price', 'Stability', 'Expected Return'
+    ])
+    return df
+
+# ============================================
+# Remove Outliers with Z-Score
+# ============================================
 def remove_outliers(df, columns):
-    """
-    Removes outliers from the specified columns using the Z-Score method.
-    """
-    z_scores = np.abs(stats.zscore(df[columns].dropna()))
-    df_clean = df[(z_scores < 3).all(axis=1)]  # Keep rows where all z-scores < 3
-    return df_clean
+    try:
+        z_scores = np.abs(stats.zscore(df[columns].dropna()))
+        return df[(z_scores < 3).all(axis=1)]
+    except Exception:
+        return df  # fallback if z-score fails
 
+# ============================================
+# Clustering with Guardrails
+# ============================================
 def perform_clustering(df):
-    """
-    Clusters stocks based on Dividend Yield, Expected Return, and Stability.
-    """
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
-
-    # Remove outliers
     df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
+
+    if df_clean.empty:
+        raise ValueError("No valid data left after removing NaNs and outliers.")
 
     scaler = StandardScaler()
     features_scaled = scaler.fit_transform(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
@@ -198,16 +224,13 @@ def perform_clustering(df):
 
     return model, df_clean
 
+# ============================================
+# Stock Recommender
+# ============================================
 def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
-    """
-    Recommends a selection of stocks within budget and preference constraints.
-    """
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
-
-    # Remove outliers
     df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
 
-    # Sort by user preference
     if preferences:
         priority = preferences.get('priority')
         if priority == 'Dividend Yield':
@@ -217,8 +240,7 @@ def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_sto
         elif priority == 'Stability':
             df_clean = df_clean.sort_values('Stability', ascending=False)
 
-    # Filter based on clustering if model is provided
-    if model:
+    if model and not df_clean.empty:
         features = df_clean[['Dividend Yield', 'Expected Return', 'Stability']]
         scaler = StandardScaler()
         features_scaled = scaler.fit_transform(features)
@@ -226,28 +248,18 @@ def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_sto
         best_cluster = df_clean['Cluster'].mode()[0]
         df_clean = df_clean[df_clean['Cluster'] == best_cluster]
 
-    # Filter by price constraints
     df_clean = df_clean[(df_clean['Price'] >= min_price_per_stock) & 
                         (df_clean['Price'] <= max_price_per_stock)]
 
-    # Select top 5
+    if df_clean.empty:
+        return pd.DataFrame()
+
     selected = df_clean.head(5)
-    allocation = budget / len(selected) if len(selected) > 0 else 0
+    allocation = budget / len(selected)
     selected['Allocation'] = allocation
 
     return selected
-
-def get_sp500_tickers():
-    """
-    Scrapes the list of S&P 500 companies from Wikipedia.
-    """
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    table = soup.find('table', {'id': 'constituents'})
-    df = pd.read_html(str(table))[0]
-    return df['Symbol'].tolist()
-
+    
 #Sector Competitor Explorer
 
 def sector_competitor_explorer():
