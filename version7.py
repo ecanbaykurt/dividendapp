@@ -141,29 +141,38 @@ from bs4 import BeautifulSoup
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+import requests
 
+API_KEY = "6EGCoGuctJXFyz9Ip641QW9XkDmSF2kc"
+
+@st.cache_data(show_spinner=False)
 def extract_features(tickers):
-    """
-    Extracts Dividend Yield, Price, Beta (Stability), and computes Expected Return
-    as Dividend Yield + Earnings Growth.
-    """
     records = []
     for ticker in tickers:
         try:
-            info = yf.Ticker(ticker).info
-            dy = info.get('dividendYield', np.nan)  # Dividend Yield (decimal form, e.g., 0.02)
-            growth = info.get('earningsGrowth', np.nan)  # Earnings growth (e.g., 0.08)
-            price = info.get('regularMarketPrice', np.nan)  # Current Price
-            beta = info.get('beta', np.nan)  # Beta (stability measure)
+            url = f"https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={API_KEY}"
+            response = requests.get(url)
+            data = response.json()
 
-            # Correct Expected Return definition
-            expected_return = (dy or 0) + (growth or 0)
-        except Exception:
-            dy, growth, price, beta, expected_return = np.nan, np.nan, np.nan, np.nan, np.nan
-        records.append([ticker, dy, price, beta, expected_return])
+            if data:
+                info = data[0]
+                price = float(info.get('price', np.nan))
+                dividend = float(info.get('lastDiv', 0))
+                beta = float(info.get('beta', np.nan))
+
+                # Approximate dividend yield
+                dividend_yield = dividend / price if price else 0
+                expected_return = dividend_yield + 0.08  # Assume 8% growth for now
+
+                records.append([ticker, dividend_yield, price, beta, expected_return])
+            else:
+                st.warning(f"⚠️ No data returned for {ticker}")
+                records.append([ticker, np.nan, np.nan, np.nan, np.nan])
+        except Exception as e:
+            st.warning(f"⚠️ Failed to fetch data for {ticker}: {e}")
+            records.append([ticker, np.nan, np.nan, np.nan, np.nan])
 
     return pd.DataFrame(records, columns=['Ticker', 'Dividend Yield', 'Price', 'Stability', 'Expected Return'])
-
 def remove_outliers(df, columns):
     """
     Removes outliers from the specified columns using the Z-Score method.
