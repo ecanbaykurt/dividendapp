@@ -19,112 +19,127 @@ import plotly.graph_objects as go
 import plotly.express as px
 from sklearn.neighbors import KernelDensity
 
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+import streamlit as st
+
+FMP_API_KEY = "493XsCeiSC8NLp2MQCZyWbwKbHQ85wbE"
+
 def display_dividend_dashboard(ticker: str):
-    ticker_obj = yf.Ticker(ticker)
-    info = ticker_obj.info
+    base_url = "https://financialmodelingprep.com/api/v3"
+
+    # 1. Company Overview
+    profile = requests.get(f"{base_url}/profile/{ticker}?apikey={FMP_API_KEY}").json()
+    if not profile:
+        st.error("❌ Ticker not found or API issue.")
+        return
+    info = profile[0]
 
     st.subheader("Company Overview")
-    st.write(info.get('longBusinessSummary', "No overview available."))
+    st.write(info.get("description", "No overview available."))
 
-    st.subheader("Dividend History (Last 10 Entries)")
-    dividends = ticker_obj.dividends
-
-    if dividends.empty:
-        st.write("No dividend data available for this ticker.")
-    else:
-        recent_dividends = dividends.tail(10)
-        st.write(recent_dividends)
-
+    # 2. Dividend History
+    divs = requests.get(f"{base_url}/historical-price-full/stock_dividend/{ticker}?apikey={FMP_API_KEY}").json()
+    if "historical" in divs and divs["historical"]:
+        df_div = pd.DataFrame(divs["historical"]).head(10)
+        df_div["date"] = pd.to_datetime(df_div["date"])
+        st.subheader("Dividend History (Last 10 Entries)")
+        st.dataframe(df_div[["date", "dividend"]])
         fig, ax = plt.subplots(figsize=(10, 4))
-        ax.bar(recent_dividends.index, recent_dividends.values)
-        ax.set_title("Dividend History (Last 10 Entries)")
+        ax.bar(df_div["date"], df_div["dividend"])
+        ax.set_title("Dividend History")
         ax.set_xlabel("Date")
         ax.set_ylabel("Dividend ($)")
         plt.xticks(rotation=45)
-        plt.tight_layout()
         st.pyplot(fig)
-
-    st.subheader("Price History (Last 1 Year)")
-    history = ticker_obj.history(period="1y")
-
-    if history.empty:
-        st.write("No price data available for this ticker.")
     else:
+        st.subheader("Dividend History")
+        st.info("No dividend history available.")
+
+    # 3. Price History
+    prices = requests.get(f"{base_url}/historical-price-full/{ticker}?timeseries=365&apikey={FMP_API_KEY}").json()
+    if "historical" in prices and prices["historical"]:
+        df_price = pd.DataFrame(prices["historical"])
+        df_price["date"] = pd.to_datetime(df_price["date"])
+        df_price.set_index("date", inplace=True)
+        df_price.sort_index(inplace=True)
+
+        st.subheader("Price History (Last 1 Year)")
         fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(history.index, history['Close'], label="Close Price")
+        ax.plot(df_price.index, df_price["close"], label="Close Price")
         ax.set_title("Price History (Last 1 Year)")
-        ax.set_xlabel("Date")
         ax.set_ylabel("Price ($)")
+        ax.set_xlabel("Date")
         ax.legend()
         st.pyplot(fig)
+    else:
+        st.info("No price history found.")
 
+    # 4. Key Financial Metrics
     st.subheader("Key Financial Metrics")
-    eps = info.get('trailingEps')
-    dividend_rate = info.get('dividendRate')
-    dividend_yield = info.get('dividendYield')
+    eps = info.get("eps")
+    dividend = info.get("lastDiv")
+    price = info.get("price")
+    dividend_yield = dividend / price if price else None
+    payout_ratio = dividend / eps if eps else None
 
-    payout_ratio = (dividend_rate / eps) if eps and dividend_rate else None
-
-    st.write("Trailing EPS:", eps if eps is not None else "N/A")
-    st.write("Dividend Rate:", dividend_rate if dividend_rate is not None else "N/A")
-    st.write("Dividend Yield:", dividend_yield if dividend_yield is not None else "N/A")
-    st.write("Dividend Payout Ratio:", round(payout_ratio, 2) if payout_ratio else "N/A")
+    st.write("Trailing EPS:", eps or "N/A")
+    st.write("Dividend Rate:", dividend or "N/A")
+    st.write("Dividend Yield:", f"{dividend_yield*100:.2f}%" if dividend_yield else "N/A")
+    st.write("Payout Ratio:", round(payout_ratio, 2) if payout_ratio else "N/A")
 
 # ============================================
 # Altman Z-Score Functions
 # ============================================
 def compute_altman_z(ticker: str):
-    ticker_obj = yf.Ticker(ticker)
-    bs = ticker_obj.balance_sheet
-    fs = ticker_obj.financials
-    info = ticker_obj.info
+    base_url = "https://financialmodelingprep.com/api/v3"
 
-    def fetch_balance(keys):
-        for key in keys:
-            for row in bs.index:
-                if row.strip().lower() == key.strip().lower():
-                    return bs.loc[row][0]
-        return None
+    # Pull data from FMP endpoints
+    bs_url = f"{base_url}/balance-sheet-statement/{ticker}?limit=1&apikey={FMP_API_KEY}"
+    is_url = f"{base_url}/income-statement/{ticker}?limit=1&apikey={FMP_API_KEY}"
+    profile_url = f"{base_url}/profile/{ticker}?apikey={FMP_API_KEY}"
 
-    def fetch_financials(keys):
-        for key in keys:
-            for row in fs.index:
-                if row.strip().lower() == key.strip().lower():
-                    return fs.loc[row][0]
-        return None
+    try:
+        bs_data = requests.get(bs_url).json()[0]
+        is_data = requests.get(is_url).json()[0]
+        profile_data = requests.get(profile_url).json()[0]
+    except Exception as e:
+        return None, f"API error: {e}"
 
-    total_assets = fetch_balance(["Total Assets"])
-    total_liabilities = fetch_balance(["Total Liabilities", "Total Liabilities Net Minority Interest"])
-    current_assets = fetch_balance(["Current Assets", "Total Current Assets"])
-    current_liabilities = fetch_balance(["Current Liabilities", "Total Current Liabilities"])
-    retained_earnings = fetch_balance(["Retained Earnings"])
-    ebit = fetch_financials(["EBIT", "Operating Income"])
-    sales = fetch_financials(["Total Revenue", "Sales"])
+    try:
+        # Financial Metrics
+        total_assets = bs_data["totalAssets"]
+        total_liabilities = bs_data["totalLiabilities"]
+        current_assets = bs_data["totalCurrentAssets"]
+        current_liabilities = bs_data["totalCurrentLiabilities"]
+        retained_earnings = bs_data["retainedEarnings"]
+        ebit = is_data["ebit"]
+        revenue = is_data["revenue"]
 
-    share_price = info.get('regularMarketPrice')
-    shares_outstanding = info.get('sharesOutstanding')
-    market_cap = share_price * shares_outstanding if share_price and shares_outstanding else None
+        share_price = profile_data["price"]
+        market_cap = profile_data["mktCap"]
 
-    if not all([total_assets, total_liabilities, market_cap]):
-        return None, "Essential data missing for computation."
+        # Altman Z-score ratios
+        working_capital = current_assets - current_liabilities
+        ratio1 = working_capital / total_assets
+        ratio2 = retained_earnings / total_assets
+        ratio3 = ebit / total_assets
+        ratio4 = market_cap / total_liabilities
+        ratio5 = revenue / total_assets
 
-    working_capital = (current_assets - current_liabilities) if current_assets and current_liabilities else 0
-    ratio1 = working_capital / total_assets
-    ratio2 = retained_earnings / total_assets
-    ratio3 = ebit / total_assets
-    ratio4 = market_cap / total_liabilities
-    ratio5 = sales / total_assets
+        z_score = 1.2 * ratio1 + 1.4 * ratio2 + 3.3 * ratio3 + 0.6 * ratio4 + ratio5
 
-    z_score = 1.2 * ratio1 + 1.4 * ratio2 + 3.3 * ratio3 + 0.6 * ratio4 + ratio5
+        if z_score > 2.99:
+            classification = "Safe Zone"
+        elif z_score >= 1.81:
+            classification = "Grey Zone"
+        else:
+            classification = "Distressed Zone"
 
-    if z_score > 2.99:
-        classification = "Safe Zone"
-    elif z_score >= 1.81:
-        classification = "Grey Zone"
-    else:
-        classification = "Distressed Zone"
-
-    return z_score, classification
+        return z_score, classification
+    except Exception as e:
+        return None, f"Computation error: {e}"
 
 # ============================================
 # Investing Analysis Using Local CSV
