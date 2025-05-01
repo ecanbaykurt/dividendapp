@@ -412,71 +412,81 @@ def main():
                 st.error(f"Error: {classification}")
 
     elif page == "Investing Analysis":
-        st.subheader("📈 Personalized Investment Recommendation")
-        budget = st.number_input("Enter Investment Budget ($)", min_value=1000, value=2000)
-        investment_priority = st.selectbox("Select Investment Priority", ['Dividend Yield', 'Expected Return', 'Stability'])
-        min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
-        max_price = st.number_input("Maximum Stock Price ($)", min_value=0, value=500)
+    st.subheader("📈 Personalized Investment Recommendation")
+    budget = st.number_input("Enter Investment Budget ($)", min_value=1000, value=2000)
+    investment_priority = st.selectbox("Select Investment Priority", ['Dividend Yield', 'Expected Return', 'Stability'])
+    min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
+    max_price = st.number_input("Maximum Stock Price ($)", min_value=0, value=500)
 
-        if st.button("Get Stock Recommendations"):
-            with st.spinner("Fetching and analyzing CSV data..."):
-                df_features = extract_features()  # ✅ Load from local CSV
-                if df_features.empty:
-                    st.error("⚠️ No data available. Please check your CSV file.")
-                    return
+    if st.button("Get Stock Recommendations"):
+        with st.spinner("Fetching and analyzing CSV data..."):
+            df_features = extract_features()  # ✅ Load from local CSV
+            if df_features.empty:
+                st.error("⚠️ No data available. Please check your CSV file.")
+                return
 
-                model, clustered = perform_clustering(df_features)
+            model, clustered = perform_clustering(df_features)
 
-                preferences = {'priority': investment_priority}
-                recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
+            preferences = {'priority': investment_priority}
+            recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
 
-            st.subheader("💡 Top Recommended Stocks")
-            st.write(recommended_stocks)
+        st.subheader("💡 Top Recommended Stocks")
+        st.write(recommended_stocks)
 
-            # Dividend income estimation
-            total_dividend_yield = recommended_stocks['Dividend Yield'].mean()
-            expected_annual_income = budget * total_dividend_yield if not np.isnan(total_dividend_yield) else 0
+        # Display high-yield options if available
+        high_yield_df = df_features[df_features['Dividend Yield'] >= 0.04]
+        if not high_yield_df.empty:
+            st.subheader("🔥 High-Yield Stocks (≥ 4%) Available in Dataset")
+            st.dataframe(high_yield_df[['Ticker', 'Dividend Yield', 'Price', 'Expected Return']].sort_values(by='Dividend Yield', ascending=False))
+        else:
+            st.info("ℹ️ No stocks in the dataset offer a dividend yield ≥ 4%.")
 
-            st.subheader("🎯 Dividend Income Goal")
-            st.metric(label="Expected Annual Dividend Income", value=f"${expected_annual_income:.2f}")
+        st.write(f"📊 **Max Dividend Yield in Dataset:** `{df_features['Dividend Yield'].max():.2%}`")
 
+        # Dividend income estimation
+        total_dividend_yield = recommended_stocks['Dividend Yield'].mean()
+        expected_annual_income = budget * total_dividend_yield if not np.isnan(total_dividend_yield) else 0
 
-            # Strategy
-            st.subheader("📘 Strategy Recommendation")
+        st.subheader("🎯 Dividend Income Goal")
+        st.metric(label="Expected Annual Dividend Income", value=f"${expected_annual_income:.2f}")
 
-            yield_rate = expected_annual_income / budget if budget else 0
-            st.markdown(f"**Estimated Yield:** `{yield_rate*100:.2f}%`")
+        # Strategy
+        st.subheader("📘 Strategy Recommendation")
 
-            if yield_rate < 0.04:
-                st.warning("⚠️ Your current portfolio is underperforming the common 4% dividend yield benchmark.")
-                st.markdown("""
-                ### 🧠 Top 3 Strategies to Boost Your Dividend Income:
-                1. **Refocus on High-Yield Sectors**  
-                   Look into sectors like utilities, REITs, and consumer staples that traditionally offer higher yields.
+        yield_rate = expected_annual_income / budget if budget else 0
+        st.markdown(f"**Estimated Yield:** `{yield_rate*100:.2f}%`")
 
-                2. **Use a Dividend Screener**  
-                   Filter stocks with a dividend yield above 4%, a payout ratio under 70%, and consistent dividend growth over 5 years.
+        if yield_rate < 0.04:
+            st.warning("⚠️ Your current portfolio is underperforming the common 4% dividend yield benchmark.")
+            st.markdown("""
+            ### 🧠 Top 3 Strategies to Boost Your Dividend Income:
+            1. **Refocus on High-Yield Sectors**  
+               Look into sectors like utilities, REITs, and consumer staples that traditionally offer higher yields.
 
-                3. **Diversify Across Stable Payors**  
-                   Include dividend aristocrats—companies with a proven track record of increasing dividends annually for 25+ years.
+            2. **Use a Dividend Screener**  
+               Filter stocks with a dividend yield above 4%, a payout ratio under 70%, and consistent dividend growth over 5 years.
 
-                These steps help maximize income while balancing risk. Would you like to see a sample high-yield portfolio?
-                """)
-            else:
-                st.success("✅ Your portfolio aligns well with a stable dividend income strategy.")
-                st.markdown("""
-                ### 📈 Top 3 Reasons Your Strategy Looks Strong:
-                1. **Healthy Dividend Yield**  
-                   You're exceeding the typical 4% target, signaling efficient use of capital for income.
+            3. **Diversify Across Stable Payors**  
+               Include dividend aristocrats—companies with a proven track record of increasing dividends annually for 25+ years.
 
-                2. **Good Balance of Risk and Return**  
-                   Your selected stocks likely combine stability with reasonable growth—ideal for long-term compounding.
+            These steps help maximize income while balancing risk. Would you like to see a sample high-yield portfolio?
+            """)
+        else:
+            st.success("✅ Your portfolio aligns well with a stable dividend income strategy.")
+            st.markdown("""
+            ### 📈 Top 3 Reasons Your Strategy Looks Strong:
+            1. **Healthy Dividend Yield**  
+               You're exceeding the typical 4% target, signaling efficient use of capital for income.
 
-                3. **Compounding Power**  
-                   If reinvested, your dividends can snowball over time—especially when paired with consistent contributions.
+            2. **Good Balance of Risk and Return**  
+               Your selected stocks likely combine stability with reasonable growth—ideal for long-term compounding.
 
-                Keep tracking performance and consider rebalancing quarterly for sustained growth.
-                """)
+            3. **Compounding Power**  
+               If reinvested, your dividends can snowball over time—especially when paired with consistent contributions.
+
+            Keep tracking performance and consider rebalancing quarterly for sustained growth.
+            """)
+
 
     elif page == "Sector Competitor Explorer":
         sector_competitor_explorer()
