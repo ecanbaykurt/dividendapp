@@ -412,19 +412,18 @@ def main():
             else:
                 st.error(f"Error: {classification}")
 
-    elif page == "Investing Analysis":
+       elif page == "Investing Analysis":
         st.subheader("📈 Personalized Investment Recommendation")
-
         budget = st.number_input("Enter Investment Budget ($)", min_value=1000, value=2000)
         investment_priority = st.selectbox("Select Investment Priority", ['Dividend Yield', 'Expected Return', 'Stability'])
         min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
         max_price = st.number_input("Maximum Stock Price ($)", min_value=0, value=500)
 
         if st.button("Get Stock Recommendations"):
-            with st.spinner("Fetching and analyzing data..."):
-                df_features = extract_features()  # ✅ Load from CSV, not API
+            with st.spinner("Fetching and analyzing CSV data..."):
+                df_features = extract_features()  # ✅ Load from local CSV
                 if df_features.empty:
-                    st.error("No valid data loaded from CSV.")
+                    st.error("⚠️ No data available. Please check your CSV file.")
                     return
 
                 model, clustered = perform_clustering(df_features)
@@ -456,6 +455,7 @@ def main():
                 st.warning("⚠️ Consider selecting stocks with higher dividend yields.")
             else:
                 st.success("✅ Your portfolio aligns well with a stable dividend income strategy.")
+  
 
     elif page == "Sector Competitor Explorer":
         sector_competitor_explorer()
