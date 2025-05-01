@@ -412,7 +412,7 @@ def main():
             else:
                 st.error(f"Error: {classification}")
 
-       elif page == "Investing Analysis":
+    elif page == "Investing Analysis":
         st.subheader("📈 Personalized Investment Recommendation")
         budget = st.number_input("Enter Investment Budget ($)", min_value=1000, value=2000)
         investment_priority = st.selectbox("Select Investment Priority", ['Dividend Yield', 'Expected Return', 'Stability'])
@@ -455,7 +455,6 @@ def main():
                 st.warning("⚠️ Consider selecting stocks with higher dividend yields.")
             else:
                 st.success("✅ Your portfolio aligns well with a stable dividend income strategy.")
-  
 
     elif page == "Sector Competitor Explorer":
         sector_competitor_explorer()
@@ -469,4 +468,5 @@ def main():
 # Only run main() when executed directly
 if __name__ == "__main__":
     main()
+
 
