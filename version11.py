@@ -19,9 +19,6 @@ import plotly.graph_objects as go
 import plotly.express as px
 from sklearn.neighbors import KernelDensity
 
-# ============================================
-# Dividend Dashboard Functions
-# ============================================
 def display_dividend_dashboard(ticker: str):
     ticker_obj = yf.Ticker(ticker)
     info = ticker_obj.info
@@ -128,8 +125,6 @@ def compute_altman_z(ticker: str):
         classification = "Distressed Zone"
 
     return z_score, classification
-
-
 
 # ============================================
 # Investing Analysis Using Local CSV
