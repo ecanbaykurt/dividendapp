@@ -387,7 +387,7 @@ def sector_competitor_explorer():
 
 
 # ============================================
-# Streamlit Main App
+# Streamlit Main App (CSV-based)
 # ============================================
 def main():
     st.title("🏦 Financial Dashboard — Christine, Omar, Emre (BA870)")
@@ -413,22 +413,26 @@ def main():
                 st.error(f"Error: {classification}")
 
     elif page == "Investing Analysis":
-        st.subheader("Personalized Investment Recommendation")
-        budget = st.number_input("Enter Investment Budget ($)", min_value=1000)
+        st.subheader("📈 Personalized Investment Recommendation")
+
+        budget = st.number_input("Enter Investment Budget ($)", min_value=1000, value=2000)
         investment_priority = st.selectbox("Select Investment Priority", ['Dividend Yield', 'Expected Return', 'Stability'])
         min_price = st.number_input("Minimum Stock Price ($)", min_value=0, value=20)
         max_price = st.number_input("Maximum Stock Price ($)", min_value=0, value=500)
 
         if st.button("Get Stock Recommendations"):
             with st.spinner("Fetching and analyzing data..."):
-                tickers = get_sp500_tickers()
-                df_features = extract_features(tickers)
+                df_features = extract_features()  # ✅ Load from CSV, not API
+                if df_features.empty:
+                    st.error("No valid data loaded from CSV.")
+                    return
+
                 model, clustered = perform_clustering(df_features)
 
                 preferences = {'priority': investment_priority}
                 recommended_stocks = recommend_stocks(clustered, budget, model, preferences, min_price, max_price)
 
-            st.subheader("Top Recommended Stocks")
+            st.subheader("💡 Top Recommended Stocks")
             st.write(recommended_stocks)
 
             # Dividend income estimation
@@ -439,6 +443,7 @@ def main():
             st.metric(label="Expected Annual Dividend Income", value=f"${expected_annual_income:.2f}")
 
             # Plot
+            import matplotlib.pyplot as plt
             fig, ax = plt.subplots()
             ax.bar(["Investment", "Expected Dividend Income"], [budget, expected_annual_income])
             ax.set_ylabel('USD ($)')
@@ -446,11 +451,11 @@ def main():
             st.pyplot(fig)
 
             # Strategy
-            st.subheader("📈 Strategy Recommendation")
+            st.subheader("📘 Strategy Recommendation")
             if expected_annual_income < budget * 0.04:
-                st.warning("Consider selecting stocks with higher dividend yields.")
+                st.warning("⚠️ Consider selecting stocks with higher dividend yields.")
             else:
-                st.success("Your portfolio aligns well with a stable dividend income strategy.")
+                st.success("✅ Your portfolio aligns well with a stable dividend income strategy.")
 
     elif page == "Sector Competitor Explorer":
         sector_competitor_explorer()
@@ -464,3 +469,4 @@ def main():
 # Only run main() when executed directly
 if __name__ == "__main__":
     main()
+
