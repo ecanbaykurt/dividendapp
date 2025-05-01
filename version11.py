@@ -440,13 +440,6 @@ def main():
             st.subheader("🎯 Dividend Income Goal")
             st.metric(label="Expected Annual Dividend Income", value=f"${expected_annual_income:.2f}")
 
-            # Plot
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots()
-            ax.bar(["Investment", "Expected Dividend Income"], [budget, expected_annual_income])
-            ax.set_ylabel('USD ($)')
-            ax.set_title('Investment vs Expected Annual Dividend')
-            st.pyplot(fig)
 
             # Strategy
             st.subheader("📘 Strategy Recommendation")
