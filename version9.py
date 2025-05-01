@@ -132,7 +132,7 @@ def compute_altman_z(ticker: str):
 
 
 # ============================================
-# Investing Analysis Functions (CSV Version)
+# Investing Analysis Using Local CSV
 # ============================================
 
 import numpy as np
@@ -143,7 +143,7 @@ from sklearn.cluster import KMeans
 import streamlit as st
 
 # ============================================
-# Load from Local CSV Instead of API
+# Load Data from CSV (No API)
 # ============================================
 @st.cache_data(show_spinner=False)
 def extract_features():
@@ -159,24 +159,24 @@ def extract_features():
         return pd.DataFrame()
 
 # ============================================
-# Remove Outliers with Z-Score
+# Remove Outliers
 # ============================================
 def remove_outliers(df, columns):
     try:
         z_scores = np.abs(stats.zscore(df[columns].dropna()))
         return df[(z_scores < 3).all(axis=1)]
     except Exception:
-        return df  # fallback if z-score fails
+        return df
 
 # ============================================
-# Clustering with Guardrails
+# Clustering Function
 # ============================================
 def perform_clustering(df):
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
     df_clean = remove_outliers(df_clean, ['Dividend Yield', 'Expected Return', 'Stability'])
 
     if df_clean.empty:
-        raise ValueError("No valid data left after removing NaNs and outliers.")
+        raise ValueError("No valid data left after cleaning.")
 
     scaler = StandardScaler()
     features_scaled = scaler.fit_transform(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
@@ -187,7 +187,7 @@ def perform_clustering(df):
     return model, df_clean
 
 # ============================================
-# Stock Recommender
+# Recommender Function
 # ============================================
 def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_stock=20, max_price_per_stock=500):
     df_clean = df.dropna(subset=['Dividend Yield', 'Expected Return', 'Stability'])
@@ -198,16 +198,14 @@ def recommend_stocks(df, budget, model=None, preferences=None, min_price_per_sto
         if priority in df_clean.columns:
             df_clean = df_clean.sort_values(priority, ascending=False)
 
-    if model and not df_clean.empty:
-        features = df_clean[['Dividend Yield', 'Expected Return', 'Stability']]
+    if model:
         scaler = StandardScaler()
-        features_scaled = scaler.fit_transform(features)
+        features_scaled = scaler.fit_transform(df_clean[['Dividend Yield', 'Expected Return', 'Stability']])
         df_clean['Cluster'] = model.predict(features_scaled)
         best_cluster = df_clean['Cluster'].mode()[0]
         df_clean = df_clean[df_clean['Cluster'] == best_cluster]
 
-    df_clean = df_clean[(df_clean['Price'] >= min_price_per_stock) &
-                        (df_clean['Price'] <= max_price_per_stock)]
+    df_clean = df_clean[(df_clean['Price'] >= min_price_per_stock) & (df_clean['Price'] <= max_price_per_stock)]
 
     if df_clean.empty:
         return pd.DataFrame()
